@@ -20,13 +20,13 @@
 :description: Helidon health checks
 :keywords: helidon, health-checks, health, check
 
-This document describes how to both built-in and custom health checks with Helidon SE.
+This document describes basic examples that use both built-in and custom health checks with Helidon SE.
 
 == What you need
 
 [width=50%,role="flex, sm7"]
 |===
-|About 10 minutes
+|About 15 minutes
 |Use the Quickstart SE guide to create a project <<guides/02_quickstart-se.adoc,Quickstart SE>>
 |===
 
@@ -38,14 +38,6 @@ Helidon has a set of built-in health checks can be optionally enabled to report 
 * deadlock detection
 * available disk space
 * available heap memory
-
-This exercise will show you how to enable the built-in health checks.  When using the health check URLs,
-you can get both liveness data, readiness data, or both:
-
-* liveness only - http://localhost:8080/health/live
-* readiness only -  http://localhost:8080/health/ready
-* both -  http://localhost:8080/health
-
 
 [source,xml]
 .Declare the following dependency in project's pom.xml file:
@@ -87,7 +79,6 @@ java -jar target/helidon-quickstart-se.jar
 
 [source,bash]
 ----
-mvn package -DskipTests=true
 curl -X GET http://localhost:8080/health
 ----
 
@@ -131,8 +122,8 @@ curl -X GET http://localhost:8080/health
 
 === Custom liveness health-checks
 
-You can create any number of application specific custom health checks and integrate
-them with Helidon using the `HealthSupport` class, which is a  WebServer service that contains
+You can create application specific custom health checks and integrate them with Helidon
+using the `HealthSupport` class, which is a  WebServer service that contains
 a collection of registered `HealthCheck` instances. When queried, it invokes the registered
 health check and returns a response with a status code representing the overall
 state of the application.
@@ -193,7 +184,6 @@ example, the server will wait 5 seconds before it becomes ready.
 [source,java]
 .Add a readyTime variable in Main.java, and set it 5 seconds after the server starts.
 ----
-
 public final class Main {
 
   private static volatile long readyTime = 0;
@@ -212,7 +202,6 @@ public final class Main {
       readyTime = System.currentTimeMillis();
 
       return server;
-
 ----
 
 [source,java]
@@ -284,6 +273,13 @@ curl -X GET http://localhost:8080/health/ready
 }
 ----
 
+
+When using the health check URLs, you can get only liveness or readiness data
+
+* liveness only - http://localhost:8080/health/live
+* readiness only -  http://localhost:8080/health/ready
+* both -  http://localhost:8080/health
+
 .Get both liveness and readiness data from a single query
 
 [source,bash]
@@ -318,7 +314,6 @@ curl -X GET http://localhost:8080/health
 }
 ----
 
-
 === Combine built-in and custom health-checks
 
 You can combine built-in and custom health checks using the same HealthSupport builder.
@@ -337,7 +332,6 @@ HealthSupport health = HealthSupport.builder()
       .withData( startTime == 0 ? "not ready" :  "started at ", startTime)
       .build())
     .build();
-
 ----
 <1> Add the built-in health checks back to HealthSupport builder
 
@@ -430,7 +424,6 @@ return Routing.builder()
     .register(health) // <2>
     .register("/greet", greetService)
     .build();
-
 ----
 <1> Change the liveness URL path using a WebContext
 <2> Register only the liveness HealthSupport
@@ -459,7 +452,7 @@ curl -X GET http://localhost:8080/probe/live
 }
 ----
 
-.Notice that the default http://localhost:8080/health/live URL no longer returns data
+.Notice that the default heath/live URL no longer returns data
 
 [source,bash]
 ----
@@ -475,17 +468,17 @@ endpoints.
 [source,java]
 .Change the HealthSupport builder in Main.java to use the built-in liveness checks, a custom liveness check, and a readiness check
 ----
-      HealthSupport health = HealthSupport.builder()
-          .addLiveness(HealthChecks.healthChecks())
-              .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")
-              .up()
-              .withData("time", System.currentTimeMillis())
-              .build()) // <1>
-          .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")
-              .state (readyTime != 0 )
-              .withData( "ready-time,", readyTime )
-              .build())
-          .build();
+HealthSupport health = HealthSupport.builder()
+    .addLiveness(HealthChecks.healthChecks())
+      .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")
+      .up()
+      .withData("time", System.currentTimeMillis())
+      .build()) // <1>
+    .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")
+      .state (readyTime != 0 )
+      .withData( "ready-time,", readyTime )
+      .build())
+    .build();
 ----
 
 .Build and restart the application, then verify the health endpoint
@@ -496,7 +489,7 @@ curl -X GET http://localhost:8080/health/live
 curl -X GET http://localhost:8080/health/ready
 ----
 
-.Build the docker image from the project directory that contains Dockerfile
+.Build the docker image
 
 [source,bash]
 ----
@@ -507,10 +500,11 @@ docker build -t helidon-quickstart-se .
 
 [source,yaml]
 .Kubernetes descriptor:
+----
 kind: Service
 apiVersion: v1
 metadata:
-  name: helidon-health
+  name: helidon-health // <1>
   labels:
     app: helidon-health
 spec:
@@ -525,7 +519,7 @@ spec:
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
-  name: helidon-health
+  name: helidon-health // <2>
 spec:
   replicas: 1
   template:
@@ -542,22 +536,20 @@ spec:
             - containerPort: 8080
           livenessProbe:
             httpGet:
-              path: /health/live
+              path: /health/live // <3>
               port: 8080
-            initialDelaySeconds: 5
+            initialDelaySeconds: 5 // <4>
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health/ready
+              path: /health/ready // <5>
               port: 8080
-            initialDelaySeconds: 5
+            initialDelaySeconds: 5 // <6>
             periodSeconds: 2
             timeoutSeconds: 3
 ---
-
-
 ----
 <1> A service of type `NodePort` that serves the default routes on port `8080`.
 <2> A deployment with one replica of a pod.
@@ -589,13 +581,13 @@ helidon-health   NodePort   10.107.226.62   <none>        8080:30116/TCP   4s //
 
 <1> A service of type `NodePort` that serves the default routes on port `30116`
 
-.Verify the health endpoints
+.Verify the health endpoints using port '30116'.  NOTE: your port may be different
 
 [source,bash]
 ----
-curl -X GET http://localhost:8080/health
-curl -X GET http://localhost:8080/health/live
-curl -X GET http://localhost:8080/health/ready
+curl -X GET http://localhost:30116/health
+curl -X GET http://localhost:30116/health/live
+curl -X GET http://localhost:30116/health/ready
 ----
 
 .Delete the application, cleaning up kubernetes resources
