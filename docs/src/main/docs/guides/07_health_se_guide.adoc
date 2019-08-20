@@ -27,7 +27,8 @@ This document describes basic examples that use both built-in and custom health 
 [width=50%,role="flex, sm7"]
 |===
 |About 15 minutes
-|Use the Quickstart SE guide to create a project <<guides/02_quickstart-se.adoc,Quickstart SE>>
+|<<about/03_prerequisites.adoc,Helidon Prerequisites>>
+|Use the <<guides/02_quickstart-se.adoc,Quickstart SE>> guide to create a project
 |===
 
 === Using the built-in health-checks
@@ -39,8 +40,11 @@ Helidon has a set of built-in health checks can be optionally enabled to report 
 * available disk space
 * available heap memory
 
+This example will demonstrate how to use the built-in health checks.  These examples are all executed
+from the root directory of your project (helidon-quickstart-se)
+
 [source,xml]
-.Declare the following dependency in project's pom.xml file:
+.Notice that the built-in health check dependency is already in the project's pom.xml file
 ----
 <dependency>
     <groupId>io.helidon.health</groupId>
@@ -48,18 +52,20 @@ Helidon has a set of built-in health checks can be optionally enabled to report 
 </dependency>
 ----
 
-.Modify Main.java to enable built-in health checks.
-
 [source,java]
+.Modify Main.java and replace the createRouting method with the following:
 ----
-HealthSupport health = HealthSupport.builder()
-    .addLiveness(HealthChecks.healthChecks()) // <1>
-    .build();
+private static Routing createRouting(Config config) {
 
-Routing.builder()
-    .register(JsonSupport.create()) // <2>
-    .register(health) // <3>
-    .build();
+    HealthSupport health = HealthSupport.builder()
+      .addLiveness(HealthChecks.healthChecks())  // <1>
+      .build();
+
+    return Routing.builder()
+      .register(JsonSupport.create()) // <2>
+      .register(health)  // <3>
+      .build();
+}
 ----
 <1> Add built-in health checks (requires the `helidon-health-checks`
  dependency).
@@ -67,19 +73,18 @@ Routing.builder()
 <3> Register the created health support with web server routing (adds the
 `/health` endpoint).
 
-.Build the application, skipping unit tests, then restart it
 
 [source,bash]
+.Build the application, skipping unit tests, then restart it
 ----
 mvn package -DskipTests=true
 java -jar target/helidon-quickstart-se.jar
 ----
 
-.Verify the health endpoint in a new terminal window
-
 [source,bash]
+.Verify the health endpoint in a new terminal window
 ----
-curl -X GET http://localhost:8080/health
+curl http://localhost:8080/health
 ----
 
 [source,json]
@@ -129,7 +134,7 @@ health check and returns a response with a status code representing the overall
 state of the application.
 
 [source,xml]
-.Declare the following dependency in project's pom.xml file:
+.Notice the custom health checks dependency is already in the project's pom.xml file
 ----
 <dependency>
     <groupId>io.helidon.health</groupId>
@@ -138,10 +143,10 @@ state of the application.
 ----
 
 [source,java]
-.Register a custom health check in Main.java
+.Replace the HealthSupport builder in the Main.createRouting method
 ----
 HealthSupport health = HealthSupport.builder()
-  .addLiveness(() -> HealthCheckResponse.named("customHealthCheck")
+  .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")
       .up()
       .withData("time", System.currentTimeMillis())
       .build()) // <1>
@@ -150,11 +155,10 @@ HealthSupport health = HealthSupport.builder()
 ----
 <1> Add a custom liveness health check. This example returns `UP` and current time.
 
-.Build and restart the application, then verify the custom health endpoint:
-
 [source,bash]
+.Build and restart the application, then verify the custom health endpoint
 ----
-curl -X GET http://localhost:8080/health
+curl http://localhost:8080/health
 ----
 
 [source,json]
@@ -164,7 +168,7 @@ curl -X GET http://localhost:8080/health
     "outcome": "UP",
     "checks": [
         {
-            "name": "customHealthCheck",
+            "name": "LivenessCheck",
             "state": "UP",
             "data": {
                 "time": 1546958376613
@@ -174,63 +178,66 @@ curl -X GET http://localhost:8080/health
 }
 ----
 
-
 === Custom readiness health-check
 
 You can add a readiness check to indicate that the application is ready to be used.  In this
 example, the server will wait 5 seconds before it becomes ready.
 
-
 [source,java]
-.Add a readyTime variable in Main.java, and set it 5 seconds after the server starts.
+.Add a readyTime variable in the Main, then set it 5 seconds after the server starts.
 ----
-public final class Main {
+import java.util.concurrent.atomic.AtomicLong;public final class Main {
 
-  private static volatile long readyTime = 0;
-
+  private static AtomicLong readyTime = new AtomicLong(0); // <1>
   ...
 
+    static WebServer startServer() throws IOException {
+    ...
       server.start() ...
 
         // Server threads are not daemon. No need to block. Just react.
       try {
-        Thread.sleep(5000);
+        Thread.sleep(5000); // <2>
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
 
-      readyTime = System.currentTimeMillis();
-
+      readyTime.set(System.currentTimeMillis()); // <3>
       return server;
 ----
+<1> Declare the ready time variable
+<1> Sleep 5 seconds
+<1> Set the readyTime to the time when the server was ready
+
 
 [source,java]
-.Add a readiness check to the HealhSupport builder in Main.java
+.Add a readiness check to the HealhSupport builder in the Main.createRouting method
 ----
-    HealthSupport health = HealthSupport.builder()
-      .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")
-          .up()
-          .withData("time", System.currentTimeMillis())
-          .build())
-      .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")
-          .state (startTime != 0 )
-          .withData( startTime == 0 ? "not ready" :  "started at ", startTime)
-          .build()) // <1>
-      .build();
+HealthSupport health = HealthSupport.builder()
+  .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")
+      .up()
+      .withData("time", System.currentTimeMillis())
+      .build())
+  .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")
+      .state (readyTime.get() != 0 )
+      .withData( "time", readyTime.get())
+      .build()) // <1>
+  .build();
 ----
-
 <1> Add the readiness check.
 
-.Build and restart the application.  Issue the curl command within 5 seconds and you see the applicaiton is not ready
-
 [source,bash]
+.Build and restart the application.  Issue the curl command with -v within 5 seconds and you see the application is not ready
 ----
-curl -X GET http://localhost:8080/health/ready
+curl -v  http://localhost:8080/health/ready
 ----
 
 [source,json]
-.JSON response:
+.HTTP response:
 ----
+...
+< HTTP/1.1 503 Service Unavailable // <1>
+...
 {
   "outcome": "DOWN",
   "status": "DOWN",
@@ -240,23 +247,26 @@ curl -X GET http://localhost:8080/health/ready
       "state": "DOWN",
       "status": "DOWN",
       "data": {
-        "ready-time,": 0
+        "time,": 0
       }
     }
   ]
 }
 ----
-
-.After 5 seconds you will see the application is ready
+<1> The HTTP status is 503 since the application is not ready
 
 [source,bash]
+.After 5 seconds you will see the application is ready
 ----
-curl -X GET http://localhost:8080/health/ready
+curl -v http://localhost:8080/health/ready
 ----
 
 [source,json]
 .JSON response:
 ----
+...
+< HTTP/1.1 200 OK // <1>
+...
 {
   "outcome": "UP",
   "status": "UP",
@@ -266,25 +276,25 @@ curl -X GET http://localhost:8080/health/ready
       "state": "UP",
       "status": "UP",
       "data": {
-        "ready-time,": 1566243562097
+        "time,": 1566243562097
       }
     }
   ]
 }
 ----
+<1> The HTTP status is 200 indicating that the application is ready
 
-
-When using the health check URLs, you can get only liveness or readiness data
+When using the health check URLs, you can get the following health check data
 
 * liveness only - http://localhost:8080/health/live
 * readiness only -  http://localhost:8080/health/ready
 * both -  http://localhost:8080/health
 
-.Get both liveness and readiness data from a single query
 
 [source,bash]
+.Get both liveness and readiness data from a single query
 ----
-curl -X GET http://localhost:8080/health
+curl http://localhost:8080/health
 ----
 
 [source,json]
@@ -307,7 +317,7 @@ curl -X GET http://localhost:8080/health
       "state": "UP",
       "status": "UP",
       "data": {
-        "ready-time,": 1566244093012
+        "time,": 1566244093012
       }
     }
   ]
@@ -319,7 +329,7 @@ curl -X GET http://localhost:8080/health
 You can combine built-in and custom health checks using the same HealthSupport builder.
 
 [source,java]
-.Register a custom health check in Main.java
+.Register a custom health check in the Main.createRouting method
 ----
 HealthSupport health = HealthSupport.builder()
     .addLiveness(HealthChecks.healthChecks())  // <1>
@@ -328,18 +338,17 @@ HealthSupport health = HealthSupport.builder()
       .withData("time", System.currentTimeMillis())
       .build())
     .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")
-      .state (startTime != 0 )
-      .withData( startTime == 0 ? "not ready" :  "started at ", startTime)
+      .state (readyTime.get() != 0 )
+      .withData( "time", readyTime.get())
       .build())
     .build();
 ----
 <1> Add the built-in health checks back to HealthSupport builder
 
-.Build and restart the application, then verify the health endpoint.  You will see both the built-in and custom health check data
-
 [source,bash]
+.Build and restart the application, then verify the health endpoint.  You will see both the built-in and custom health check data
 ----
-curl -X GET http://localhost:8080/health
+curl http://localhost:8080/health
 ----
 
 [source,json]
@@ -362,7 +371,7 @@ curl -X GET http://localhost:8080/health
       "state": "UP",
       "status": "UP",
       "data": {
-        "ready-time,": 1566245527620
+        "time,": 1566245527620
       }
     },
     {
@@ -401,38 +410,30 @@ curl -X GET http://localhost:8080/health
 ----
 
 
+=== Custom health check URL path
 
-=== Custom health check URL
-
-You can use a custom URL path for heath checks by setting the WebContext.  In this example
-the liveness URL is changed, but you can do the same for the readiness URL and the default
-health URL.
+You can use a custom URL path for heath checks by setting the WebContext.  In this example, only
+the liveness URL is changed, but you can do the same for the readiness and default
+health checks.
 
 [source,java]
-.Register a custom health check in Main.java
+.Register a custom URL path with the custom health check in the Main.createRouting method
 ----
 HealthSupport health = HealthSupport.builder()
     .webContext("/probe/live")// <1>
-    .addLiveness(() -> HealthCheckResponse.named("customHealthCheck")
+    .addLiveness(() -> HealthCheckResponse.named("livenessProbe")
       .up()
       .withData("time", System.currentTimeMillis())
       .build())
     .build();
 
-return Routing.builder()
-    .register(JsonSupport.create())
-    .register(health) // <2>
-    .register("/greet", greetService)
-    .build();
 ----
 <1> Change the liveness URL path using a WebContext
-<2> Register only the liveness HealthSupport
-
-.Build and restart the application, then verify the health endpoint.  Verify the custom health endpoint is at the new URL
 
 [source,bash]
+.Build and restart the application, then verify the health endpoint.  Verify the custom health endpoint is at the new URL path
 ----
-curl -X GET http://localhost:8080/probe/live
+curl http://localhost:8080/probe/live
 ----
 
 [source,json]
@@ -442,7 +443,7 @@ curl -X GET http://localhost:8080/probe/live
   "outcome": "UP",
   "checks": [
     {
-      "name": "customHealthCheck",
+      "name": "livenessProbe",
       "state": "UP",
       "data": {
         "time": 1546958376613
@@ -456,7 +457,7 @@ curl -X GET http://localhost:8080/probe/live
 
 [source,bash]
 ----
-curl -X GET http://localhost:8080/health/live
+curl http://localhost:8080/health/live
 ----
 
 === Using Liveness and Readiness health checks with Kubernetes
@@ -466,7 +467,7 @@ health endpoints for the Kubernetes liveness and readiness probes. Note that the
 endpoints.
 
 [source,java]
-.Change the HealthSupport builder in Main.java to use the built-in liveness checks, a custom liveness check, and a readiness check
+.Change the HealthSupport builder in the Main.createRouting method to use the built-in liveness checks, a custom liveness check, and a readiness check
 ----
 HealthSupport health = HealthSupport.builder()
     .addLiveness(HealthChecks.healthChecks())
@@ -475,18 +476,18 @@ HealthSupport health = HealthSupport.builder()
       .withData("time", System.currentTimeMillis())
       .build()) // <1>
     .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")
-      .state (readyTime != 0 )
-      .withData( "ready-time,", readyTime )
-      .build())
+      .state (readyTime.get() != 0 )
+      .withData( "time", readyTime.get())
+      .build()) // <1>
     .build();
 ----
 
-.Build and restart the application, then verify the health endpoint
+.Build and restart the application, then verify the live and ready health endpoints
 
 [source,bash]
 ----
-curl -X GET http://localhost:8080/health/live
-curl -X GET http://localhost:8080/health/ready
+curl http://localhost:8080/health/live
+curl http://localhost:8080/health/ready
 ----
 
 .Build the docker image
@@ -496,10 +497,8 @@ curl -X GET http://localhost:8080/health/ready
 docker build -t helidon-quickstart-se .
 ----
 
-.Create the YAML specification, named health.yaml, needed for the Kubernetes service and deployment.
-
 [source,yaml]
-.Kubernetes descriptor:
+.Create the Kubernetes YAML specification, named health.yaml, with the following content
 ----
 kind: Service
 apiVersion: v1
@@ -559,16 +558,14 @@ spec:
 <6> The readiness probe configuration.
 
 
-.Create and deploy the application into kubernetes
-
 [source,bash]
+.Create and deploy the application into kubernetes
 ----
 kubectl apply -f ./health.yaml
 ----
 
-.Get the service informmation
-
 [source,bash]
+.Get the service informmation
 ----
 kubectl get service/helidon-health
 ----
@@ -578,21 +575,75 @@ kubectl get service/helidon-health
 NAME             TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
 helidon-health   NodePort   10.107.226.62   <none>        8080:30116/TCP   4s // <1>
 ----
-
 <1> A service of type `NodePort` that serves the default routes on port `30116`
 
-.Verify the health endpoints using port '30116'.  NOTE: your port may be different
+[source,bash]
+.Verify the health endpoints using port '30116'.  NOTE: your port may be different.  For example
+----
+curl http://localhost:30116/health
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "outcome": "UP",
+  "status": "UP",
+  "checks": [
+    {
+      "name": "LivenessCheck",
+      "state": "UP",
+      "status": "UP",
+      "data": {
+        "time": 1566245527673
+      }
+    },
+    {
+      "name": "ReadinessCheck",
+      "state": "UP",
+      "status": "UP",
+      "data": {
+        "time,": 1566245527620
+      }
+    },
+    {
+      "name": "deadlock",
+      "state": "UP",
+      "status": "UP"
+    },
+    {
+      "name": "diskSpace",
+      "state": "UP",
+      "status": "UP",
+      "data": {
+        "free": "326.17 GB",
+        "freeBytes": 350224424960,
+        "percentFree": "70.05%",
+        "total": "465.63 GB",
+        "totalBytes": 499963174912
+      }
+    },
+    {
+      "name": "heapMemory",
+      "state": "UP",
+      "status": "UP",
+      "data": {
+        "free": "247.76 MB",
+        "freeBytes": 259791680,
+        "max": "4.00 GB",
+        "maxBytes": 4294967296,
+        "percentFree": "99.80%",
+        "total": "256.00 MB",
+        "totalBytes": 268435456
+      }
+    }
+  ]
+}
+----
+
 
 [source,bash]
-----
-curl -X GET http://localhost:30116/health
-curl -X GET http://localhost:30116/health/live
-curl -X GET http://localhost:30116/health/ready
-----
-
 .Delete the application, cleaning up kubernetes resources
-
-[source,bash]
 ----
 kubectl delete -f ./health.yaml
 ----
