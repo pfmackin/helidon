@@ -28,8 +28,24 @@ This document describes basic examples that use both built-in and custom health 
 |===
 |About 15 minutes
 |<<about/03_prerequisites.adoc,Helidon Prerequisites>>
-|Use the <<guides/02_quickstart-se.adoc,Quickstart SE>> guide to create a project
 |===
+
+=== Create a sample SE project
+
+Generate the project sources using the Helidon SE Maven archetype.
+The result is a simple project that can be used for the examples in this guide.
+
+[source,bash,subs="attributes+"]
+.Run the Maven archetype
+----
+mvn archetype:generate -DinteractiveMode=false \
+    -DarchetypeGroupId=io.helidon.archetypes \
+    -DarchetypeArtifactId=helidon-quickstart-se \
+    -DarchetypeVersion={helidon-version} \
+    -DgroupId=io.helidon.examples \
+    -DartifactId=helidon-quickstart-se \
+    -Dpackage=io.helidon.examples.quickstart.se
+----
 
 === Using the built-in health-checks
 
@@ -53,24 +69,30 @@ from the root directory of your project (helidon-quickstart-se)
 ----
 
 [source,java]
-.Modify Main.java and replace the createRouting method with the following:
+.Modify Main.java, import HealthCheckReponse, and replace the createRouting method with the following:
 ----
+
+import org.eclipse.microprofile.health.HealthCheckResponse;  // <1>
+
+...
+
 private static Routing createRouting(Config config) {
 
     HealthSupport health = HealthSupport.builder()
-      .addLiveness(HealthChecks.healthChecks())  // <1>
+      .addLiveness(HealthChecks.healthChecks())  // <2>
       .build();
 
     return Routing.builder()
-      .register(JsonSupport.create()) // <2>
-      .register(health)  // <3>
+      .register(JsonSupport.create()) // <3>
+      .register(health)  // <4>
       .build();
 }
 ----
-<1> Add built-in health checks (requires the `helidon-health-checks`
+<1> Import HealthCheckResponse
+<2> Add built-in health checks (requires the `helidon-health-checks`
  dependency).
-<2> Register the `JSON-P` support in the WebServer routing.
-<3> Register the created health support with web server routing (adds the
+<3> Register the `JSON-P` support in the WebServer routing.
+<4> Register the created health support with web server routing (adds the
 `/health` endpoint).
 
 
@@ -184,11 +206,13 @@ You can add a readiness check to indicate that the application is ready to be us
 example, the server will wait 5 seconds before it becomes ready.
 
 [source,java]
-.Add a readyTime variable in the Main, then set it 5 seconds after the server starts.
+.Add a readyTime variable to the Main class, then set it 5 seconds after the server starts.
 ----
-import java.util.concurrent.atomic.AtomicLong;public final class Main {
+import java.util.concurrent.atomic.AtomicLong; // <1>
 
-  private static AtomicLong readyTime = new AtomicLong(0); // <1>
+public final class Main {
+
+  private static AtomicLong readyTime = new AtomicLong(0); // <2>
   ...
 
     static WebServer startServer() throws IOException {
@@ -197,17 +221,18 @@ import java.util.concurrent.atomic.AtomicLong;public final class Main {
 
         // Server threads are not daemon. No need to block. Just react.
       try {
-        Thread.sleep(5000); // <2>
+        Thread.sleep(5000); // <3>
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
 
-      readyTime.set(System.currentTimeMillis()); // <3>
+      readyTime.set(System.currentTimeMillis()); // <4>
       return server;
 ----
-<1> Declare the ready time variable
-<1> Sleep 5 seconds
-<1> Set the readyTime to the time when the server was ready
+<1> Import AtomicLong
+<2> Declare the ready time variable
+<3> Sleep 5 seconds
+<4> Set the readyTime to the time when the server was ready
 
 
 [source,java]
@@ -470,17 +495,20 @@ endpoints.
 .Change the HealthSupport builder in the Main.createRouting method to use the built-in liveness checks, a custom liveness check, and a readiness check
 ----
 HealthSupport health = HealthSupport.builder()
-    .addLiveness(HealthChecks.healthChecks())
-      .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")
+    .addLiveness(HealthChecks.healthChecks()) // <1>
+    .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")  // <2>
       .up()
       .withData("time", System.currentTimeMillis())
-      .build()) // <1>
-    .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")
+      .build())
+    .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")  // <3>
       .state (readyTime.get() != 0 )
       .withData( "time", readyTime.get())
-      .build()) // <1>
+      .build())
     .build();
 ----
+<1> Add built-in health checks
+<2> Add custom liveness check
+<2> Add custom readiness check
 
 .Build and restart the application, then verify the live and ready health endpoints
 
