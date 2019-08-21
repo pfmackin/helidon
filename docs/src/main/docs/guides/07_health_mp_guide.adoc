@@ -49,7 +49,7 @@ mvn archetype:generate -DinteractiveMode=false \
 
 === Using the built-in health-checks
 
-Helidon has a set of built-in health checks can be optionally enabled to report various
+Helidon has a set of built-in health checks that are automatically enabled to report various
 health check statuses that are commonly used:
 
 * deadlock detection
@@ -59,48 +59,12 @@ health check statuses that are commonly used:
 This example will demonstrate how to use the built-in health checks.  These examples are all executed
 from the root directory of your project (helidon-quickstart-se)
 
-[source,xml]
-.Notice that the built-in health check dependency is already in the project's pom.xml file
-----
-<dependency>
-    <groupId>io.helidon.health</groupId>
-    <artifactId>helidon-health-checks</artifactId>
-</dependency>
-----
-
-[source,java]
-.Modify Main.java, import HealthCheckReponse, and replace the createRouting method with the following:
-----
-
-import org.eclipse.microprofile.health.HealthCheckResponse;  // <1>
-
-...
-
-private static Routing createRouting(Config config) {
-
-    HealthSupport health = HealthSupport.builder()
-      .addLiveness(HealthChecks.healthChecks())  // <2>
-      .build();
-
-    return Routing.builder()
-      .register(JsonSupport.create()) // <3>
-      .register(health)  // <4>
-      .build();
-}
-----
-<1> Import HealthCheckResponse
-<2> Add built-in health checks (requires the `helidon-health-checks`
-dependency).
-<3> Register the `JSON-P` support in the WebServer routing.
-<4> Register the created health support with web server routing (adds the
-`/health` endpoint).
-
 
 [source,bash]
 .Build the application, skipping unit tests, then restart it
 ----
 mvn package -DskipTests=true
-java -jar target/helidon-quickstart-se.jar
+java -jar target/helidon-quickstart-mp.jar
 ----
 
 [source,bash]
@@ -113,90 +77,106 @@ curl http://localhost:8080/health
 .JSON response.
 ----
 {
-    "outcome": "UP",
-    "checks": [
-        {
-            "name": "deadlock",
-            "state": "UP"
-        },
-        {
-            "name": "diskSpace",
-            "state": "UP",
-            "data": {
-                "free": "211.00 GB",
-                "freeBytes": 226563444736,
-                "percentFree": "45.31%",
-                "total": "465.72 GB",
-                "totalBytes": 500068036608
-            }
-        },
-        {
-            "name": "heapMemory",
-            "state": "UP",
-            "data": {
-                "free": "215.15 MB",
-                "freeBytes": 225600496,
-                "max": "3.56 GB",
-                "maxBytes": 3817865216,
-                "percentFree": "99.17%",
-                "total": "245.50 MB",
-                "totalBytes": 257425408
-            }
-        }
-    ]
+  "outcome": "UP",
+  "status": "UP",
+  "checks": [
+    {
+      "name": "deadlock",
+      "state": "UP",
+      "status": "UP"
+    },
+    {
+      "name": "diskSpace",
+      "state": "UP",
+      "status": "UP",
+      "data": {
+        "free": "325.63 GB",
+        "freeBytes": 349643145216,
+        "percentFree": "69.93%",
+        "total": "465.63 GB",
+        "totalBytes": 499963174912
+      }
+    },
+    {
+      "name": "heapMemory",
+      "state": "UP",
+      "status": "UP",
+      "data": {
+        "free": "238.58 MB",
+        "freeBytes": 250171440,
+        "max": "3.56 GB",
+        "maxBytes": 3817865216,
+        "percentFree": "99.16%",
+        "total": "269.00 MB",
+        "totalBytes": 282066944
+      }
+    }
+  ]
 }
 ----
 
 === Custom liveness health-checks
 
 You can create application specific custom health checks and integrate them with Helidon
-using the `HealthSupport` class, which is a  WebServer service that contains
-a collection of registered `HealthCheck` instances. When queried, it invokes the registered
-health check and returns a response with a status code representing the overall
-state of the application.
-
-[source,xml]
-.Notice the custom health checks dependency is already in the project's pom.xml file
-----
-<dependency>
-    <groupId>io.helidon.health</groupId>
-    <artifactId>helidon-health</artifactId>
-</dependency>
-----
+using the CDI.  The following example shows how to add a custom liveness health-check
 
 [source,java]
-.Replace the HealthSupport builder in the Main.createRouting method
+.Create a new class GreetHealthcheck with the following content
 ----
-HealthSupport health = HealthSupport.builder()
-  .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")
-      .up()
-      .withData("time", System.currentTimeMillis())
-      .build()) // <1>
-  .build();
+package io.helidon.examples.quickstart.mp;
 
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+
+import org.eclipse.microprofile.health.HealthCheck;
+import org.eclipse.microprofile.health.HealthCheckResponse;
+import org.eclipse.microprofile.health.Liveness;
+
+@Liveness
+@ApplicationScoped
+public class GreetHealthCheck implements HealthCheck {
+  private GreetingProvider provider;
+
+  @Inject
+  public GreetHealthCheck(GreetingProvider provider) {
+    this.provider = provider;
+  }
+
+  @Override
+  public HealthCheckResponse call() {
+    String message = provider.getMessage();
+    return HealthCheckResponse.named("LivenessCheck") // <2>
+        .up()
+        .withData("time", System.currentTimeMillis())
+        .build();
+  }
+}
 ----
-<1> Add a custom liveness health check. This example returns `UP` and current time.
+<1> Indicates that this is a liveness health check
+<2> Build the HealthCheckResponse with status UP and the current time
 
 [source,bash]
-.Build and restart the application, then verify the custom health endpoint
+.Build and restart the application, then verify the custom liveness health endpoint
 ----
-curl http://localhost:8080/health
+curl http://localhost:8080/health/live
 ----
 
 [source,json]
 .JSON response:
 ----
 {
-    "outcome": "UP",
-    "checks": [
-        {
-            "name": "LivenessCheck",
-            "state": "UP",
-            "data": {
-                "time": 1546958376613
-            }
-        }
-    ]
+  "outcome": "UP",
+  "status": "UP",
+  "checks": [
+    {
+      "name": "LivenessCheck",
+      "state": "UP",
+      "status": "UP",
+      "data": {
+        "time": 1566338255331
+      }
+    }
+  ]
 }
 ----
 
@@ -522,7 +502,7 @@ curl http://localhost:8080/health/ready
 
 [source,bash]
 ----
-docker build -t helidon-quickstart-se .
+docker build -t helidon-quickstart-mp .
 ----
 
 [source,yaml]
@@ -557,7 +537,7 @@ spec:
     spec:
       containers:
         - name: helidon-health
-          image: helidon-quickstart-se
+          image: helidon-quickstart-mp
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
