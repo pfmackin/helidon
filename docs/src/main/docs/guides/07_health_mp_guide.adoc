@@ -357,89 +357,11 @@ curl http://localhost:8080/health
 }
 ----
 
-
-=== Custom health check URL path
-
-You can use a custom URL path for heath checks by setting the WebContext.  In this example, only
-the liveness URL is changed, but you can do the same for the readiness and default
-health checks.
-
-[source,java]
-.Register a custom URL path with the custom health check in the Main.createRouting method
-----
-HealthSupport health = HealthSupport.builder()
-    .webContext("/probe/live")// <1>
-    .addLiveness(() -> HealthCheckResponse.named("livenessProbe")
-      .up()
-      .withData("time", System.currentTimeMillis())
-      .build())
-    .build();
-
-----
-<1> Change the liveness URL path using a WebContext
-
-[source,bash]
-.Build and restart the application, then verify the health endpoint.  Verify the custom health endpoint is at the new URL path
-----
-curl http://localhost:8080/probe/live
-----
-
-[source,json]
-.JSON response:
-----
-{
-  "outcome": "UP",
-  "checks": [
-    {
-      "name": "livenessProbe",
-      "state": "UP",
-      "data": {
-        "time": 1546958376613
-      }
-    }
-  ]
-}
-----
-
-.Notice that the default heath/live URL no longer returns data
-
-[source,bash]
-----
-curl http://localhost:8080/health/live
-----
-
 === Using Liveness and Readiness health checks with Kubernetes
 
 This example shows how to integrate the  of the Helidon health API in an application that implements
 health endpoints for the Kubernetes liveness and readiness probes. Note that the application uses custom port and URL for health
 endpoints.
-
-[source,java]
-.Change the HealthSupport builder in the Main.createRouting method to use the built-in liveness checks, a custom liveness check, and a readiness check
-----
-HealthSupport health = HealthSupport.builder()
-    .addLiveness(HealthChecks.healthChecks()) // <1>
-    .addLiveness(() -> HealthCheckResponse.named("LivenessCheck")  // <2>
-      .up()
-      .withData("time", System.currentTimeMillis())
-      .build())
-    .addReadiness(() -> HealthCheckResponse.named("ReadinessCheck")  // <3>
-      .state (readyTime.get() != 0 )
-      .withData( "time", readyTime.get())
-      .build())
-    .build();
-----
-<1> Add built-in health checks
-<2> Add custom liveness check
-<2> Add custom readiness check
-
-.Build and restart the application, then verify the live and ready health endpoints
-
-[source,bash]
-----
-curl http://localhost:8080/health/live
-curl http://localhost:8080/health/ready
-----
 
 .Build the docker image
 
@@ -532,64 +454,6 @@ helidon-health   NodePort   10.107.226.62   <none>        8080:30116/TCP   4s //
 .Verify the health endpoints using port '30116'.  NOTE: your port may be different.  For example
 ----
 curl http://localhost:30116/health
-----
-
-[source,json]
-.JSON response:
-----
-{
-  "outcome": "UP",
-  "status": "UP",
-  "checks": [
-    {
-      "name": "LivenessCheck",
-      "state": "UP",
-      "status": "UP",
-      "data": {
-        "time": 1566245527673
-      }
-    },
-    {
-      "name": "ReadinessCheck",
-      "state": "UP",
-      "status": "UP",
-      "data": {
-        "time,": 1566245527620
-      }
-    },
-    {
-      "name": "deadlock",
-      "state": "UP",
-      "status": "UP"
-    },
-    {
-      "name": "diskSpace",
-      "state": "UP",
-      "status": "UP",
-      "data": {
-        "free": "326.17 GB",
-        "freeBytes": 350224424960,
-        "percentFree": "70.05%",
-        "total": "465.63 GB",
-        "totalBytes": 499963174912
-      }
-    },
-    {
-      "name": "heapMemory",
-      "state": "UP",
-      "status": "UP",
-      "data": {
-        "free": "247.76 MB",
-        "freeBytes": 259791680,
-        "max": "4.00 GB",
-        "maxBytes": 4294967296,
-        "percentFree": "99.80%",
-        "total": "256.00 MB",
-        "totalBytes": 268435456
-      }
-    }
-  ]
-}
 ----
 
 
