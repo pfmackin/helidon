@@ -69,7 +69,8 @@ mvn package -DskipTests=true
 java -jar target/helidon-quickstart-mp.jar
 ----
 
-NOTE: Metrics can be returned in either text format (the default), or JSON.
+NOTE: Metrics can be returned in either text format (the default), or JSON.  The text format uses OpenMetrics Text Format,
+see https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details
 
 [source,bash]
 .Verify the metrics endpoint in a new terminal window
