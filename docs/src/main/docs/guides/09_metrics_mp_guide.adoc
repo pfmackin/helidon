@@ -26,11 +26,11 @@ This document describes basic examples that use both built-in and custom metrics
 
 [width=50%,role="flex, sm7"]
 |===
-|About 15 minutes
+|About 30 minutes
 |<<about/03_prerequisites.adoc,Helidon Prerequisites>>
 |===
 
-TIP: See the full Microprofile Metrics specification at https://github.com/eclipse/microprofile-metrics/releases/tag/2.0.1
+TIP: See the full Microprofile Metrics specification at https://github.com/eclipse/microprofile-metrics/releases/tag/1.1
 
 === Create a sample MP project
 
@@ -93,7 +93,7 @@ base:classloader_total_loaded_class_count 7512
 Get the same data in JSON format.
 
 [source,bash]
-.Verify the metrics endpoint with a HTTP accept header
+.Verify the metrics endpoint with an HTTP accept header
 ----
 curl -H "Accept: application/json"  http://localhost:8080/metrics
 ----
@@ -211,13 +211,16 @@ You can get the metadata for any scope, such as /metrics/base, as shown beloww:
 
 === Application specific metrics data
 
-You can create application specific custom metrics and integrate them with Helidon
-using the CDI.  To add a new metric in MP, simply annotate the JAX-RS resource with one of the annotations.
+You can create application specific metrics and integrate them with Helidon using the CDI.
+To add a new metric, simply annotate the JAX-RS resource with one of the metric annotations. Metrics can
+be injected at the class, method, and field levels.  This document when show examples of all three.
 
-The following example will demonstrate how to use the @Counted annoation to track the number of times
+==== Method level metrics
+
+The following example will demonstrate how to use the @Counted annotation to track the number of times
 the /cards/birthday endpoint is called.
 
-NOTE: You must set @Counted monotonic attribute to `true` to force the count to increment rather than decrement.
+NOTE: You must set @Counted monotonic field to `true` to force the count to increment rather than decrement.
 
 [source,java]
 .Create a new class `GreetingCards' with the following:
@@ -282,7 +285,7 @@ curl http://localhost:8080/metrics/application
 ----
 <1> The application metrics count will be 2, since you called the birthday endpoint twice.
 
-Notice the counter is fully qualified.  You remove the packge prefix by using `absolute` in the @Counted annotation
+Notice the counter is fully qualified.  You remove the package prefix by using the `absolute=true` field in the @Counted annotation
 
 [source,java]
 .Modify the @Counted annotation in `GreetingCards.java'
@@ -313,7 +316,7 @@ The following demo introduces a metric to count all card queries.
 
 
 [source,java]
-.Update the `GreetingCards` class with the following:
+.Update the `GreetingCards` class with the following code:
 ----
 package io.helidon.examples.quickstart.mp;
 
@@ -368,7 +371,7 @@ curl http://localhost:8080/metrics/application
 ----
 
 [source,json]
-.JSON response:
+.JSON response from /metrics/application
 ----
 {
   "birthday-cards": 1,
@@ -376,8 +379,102 @@ curl http://localhost:8080/metrics/application
   "io.helidon.examples.quickstart.mp.all-cards.GreetingCards": 2
 }
 ----
-<1> The all-cards count is a total of all the method level counter metrics.  Notice that the
+<1> The all-cards count is a total of all the method level counter metrics.  Notice that the class level
 name is fully qualified even though `absolute=true` was specified.
+
+==== Field level metrics
+
+Field level metrics can be injected into an object, but they need to be updated by the application code.  This
+example shows how to use a field level counter metric to track cache hits.
+
+[source,java]
+.Update the `GreetingCards` class with the following code:
+----
+package io.helidon.examples.quickstart.mp;
+
+import java.util.Collections;
+import java.util.Random;
+import javax.enterprise.context.RequestScoped;
+import javax.inject.Inject;
+import javax.json.Json;
+import javax.json.JsonBuilderFactory;
+import javax.json.JsonObject;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import org.eclipse.microprofile.metrics.Counter;
+import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.metrics.annotation.Metric;
+
+@Path("/cards")
+@RequestScoped
+@Counted(name = "all-cards", monotonic = true)
+public class GreetingCards {
+
+  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
+
+  @Inject
+  @Metric(name = "cacheHits", absolute = true) // <1>
+  private Counter cacheHits;
+
+  @Path("/birthday")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @Counted(name = "birthday-cards", monotonic = true, absolute = true)
+  public JsonObject birthday() throws InterruptedException {
+    checkCache(); // <2>
+    return createResponse("Here are some birthday cards ...");
+  }
+
+  @Path("/holiday")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @Counted(name = "holiday-cards", monotonic = true, absolute = true)
+  public JsonObject holiday() throws InterruptedException { // <3>
+    checkCache();
+    return createResponse("Here are some holiday cards ...");
+  }
+
+  private JsonObject createResponse(String msg) {
+    checkCache();
+    return JSON.createObjectBuilder().add("message", msg).build();
+  }
+
+  private void checkCache() {
+    if (new Random().nextInt(3) == 1) {
+      cacheHits.inc(); // <3>
+    }
+  }
+}
+----
+<1> A Counter metric field, `cacheHits`, is automatically injected by Helidon
+<2> Call `checkCache()` to update the cache hits
+<3> Randomly increment the `cacheHits` Counter.
+
+[source,bash]
+.Build and run the application, then invoke the application metrics endpoints below
+----
+curl http://localhost:8080/cards/birthday
+curl http://localhost:8080/cards/birthday
+curl http://localhost:8080/cards/birthday
+curl http://localhost:8080/cards/holiday
+curl http://localhost:8080/cards/holiday
+curl http://localhost:8080/metrics/application
+----
+
+[source,json]
+.JSON response from /metrics/application
+----
+{
+  "birthday-cards": 3,
+  "cacheHits": 2,  // <1>
+  "holiday-cards": 2,
+  "io.helidon.examples.quickstart.mp.all-cards.GreetingCards": 5
+}
+----
+<1> The cache was hit 2 times out of 5 queries
+
 
 
 ==== Tagged metrics
