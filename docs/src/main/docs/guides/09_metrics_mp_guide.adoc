@@ -1,0 +1,256 @@
+///////////////////////////////////////////////////////////////////////////////
+
+    Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+///////////////////////////////////////////////////////////////////////////////
+
+= Metrics  MP Guide
+:description: Helidon metrics s
+:keywords: helidon, metrics, metrics, 
+
+This document describes basic examples that use both built-in and custom metrics with Helidon MP.
+
+== What you need
+
+[width=50%,role="flex, sm7"]
+|===
+|About 15 minutes
+|<<about/03_prerequisites.adoc,Helidon Prerequisites>>
+|===
+
+TIP: See the full Microprofile Metrics specification at https://github.com/eclipse/microprofile-metrics/releases/tag/2.0.1
+
+=== Create a sample MP project
+
+Generate the project sources using the Helidon MP Maven archetype.
+The result is a simple project that can be used for the examples in this guide.
+
+[source,bash,subs="attributes+"]
+.Run the Maven archetype
+----
+mvn archetype:generate -DinteractiveMode=false \
+    -DarchetypeGroupId=io.helidon.archetypes \
+    -DarchetypeArtifactId=helidon-quickstart-mp \
+    -DarchetypeVersion={helidon-version} \
+    -DgroupId=io.helidon.examples \
+    -DartifactId=helidon-quickstart-mp \
+    -Dpackage=io.helidon.examples.quickstart.mp
+----
+
+=== Using the built-in metrics
+
+Helidon provides 3 scopes of metrics data as shown below. The base and vendor metrics are automatically enabled in Helidon.
+The /metrics endpoint will return data for all scopes.
+
+1. /metrics/base - Base metrics data as specified by the MicroProfile Metrics specification
+2. /metrics/vendor - Helidon specific metrics data
+3. /metrics/application - Application specific metrics data
+
+
+This example will demonstrate how to use the built-in metrics.  These examples are all executed
+from the root directory of your project (helidon-quickstart-mp)
+
+[source,bash]
+.Build the application, skipping unit tests, then restart it
+----
+mvn package -DskipTests=true
+java -jar target/helidon-quickstart-mp.jar
+----
+
+NOTE: Metrics can be returned in either text format (the default), or JSON.
+
+[source,bash]
+.Verify the metrics endpoint in a new terminal window
+----
+curl http://localhost:8080/metrics
+----
+
+[source,text]
+.Text response.
+----
+# TYPE base:classloader_current_loaded_class_count counter
+# HELP base:classloader_current_loaded_class_count Displays the number of classes that are currently loaded in the Java virtual machine.
+base:classloader_current_loaded_class_count 7511
+# TYPE base:classloader_total_loaded_class_count counter
+# HELP base:classloader_total_loaded_class_count Displays the total number of classes that have been loaded since the Java virtual machine has started execution.
+base:classloader_total_loaded_class_count 7512
+...
+----
+
+Get the same data in JSON format.
+
+[source,bash]
+.Verify the metrics endpoint with a HTTP accept header
+----
+curl -H "Accept: application/json"  http://localhost:8080/metrics
+----
+
+[source,json]
+.JSON response.
+----
+{
+  "base": {
+    "classloader.currentLoadedClass.count": 7534,
+    "classloader.totalLoadedClass.count": 7538,
+    "classloader.totalUnloadedClass.count": 1,
+    "cpu.availableProcessors": 4,
+    "cpu.systemLoadAverage": 2.83349609375,
+    "gc.PS MarkSweep.count": 2,
+    "gc.PS MarkSweep.time": 77,
+    "gc.PS Scavenge.count": 5,
+    "gc.PS Scavenge.time": 37,
+    "jvm.uptime": 727588,
+    "memory.committedHeap": 284164096,
+    "memory.maxHeap": 3817865216,
+    "memory.usedHeap": 53283088,
+    "thread.count": 44,
+    "thread.daemon.count": 35,
+    "thread.max.count": 44
+  },
+  "vendor": {
+    "grpc.requests.count": 0,
+    "grpc.requests.meter": {
+      "count": 0,
+      "meanRate": 0.0,
+      "oneMinRate": 0.0,
+      "fiveMinRate": 0.0,
+      "fifteenMinRate": 0.0
+    },
+    "requests.count": 6,
+    "requests.meter": {
+      "count": 6,
+      "meanRate": 0.008275992296704147,
+      "oneMinRate": 0.01576418632772332,
+      "fiveMinRate": 0.006695060022357365,
+      "fifteenMinRate": 0.0036382699664488415
+    }
+  }
+}
+----
+
+You can get a single metric by specifying the name in the URL path
+
+[source,bash]
+.Get the Helidon grpc.requests.meter
+----
+curl -H "Accept: application/json"  http://localhost:8080/metrics/vendor/grpc.requests.meter
+----
+
+[source,json]
+.JSON response.
+----
+{
+  "grpc.requests.meter": {
+    "count": 0,
+    "meanRate": 0.0,
+    "oneMinRate": 0.0,
+    "fiveMinRate": 0.0,
+    "fifteenMinRate": 0.0
+  }
+}
+----
+
+NOTE: You cannot get the individual fields of a metric. For example, you cannot target http://localhost:8080/metrics/vendor/grpc.requests.meter.count
+
+=== Metrics Metadata
+
+Each metric has a associated metadata that describes:
+
+1. name: The name of the metric.
+2. units: The unit of the metric such as time (seconds, millisecond), size (bytes, megabytes), etc
+3. type: The type of metric: counter, gauge, meter, histogram, timer, etc.
+
+You can get the metadata for any scope, such as /metrics/base, as shown beloww:
+
+[source,bash]
+.Get the metrics metadata using HTTP OPTIONS method
+----
+ curl -X OPTIONS -H "Accept: application/json"  http://localhost:8080/metrics/base
+----
+
+[source,json]
+.JSON response (truncated)
+----
+{
+  "classloader.currentLoadedClass.count": {
+    "unit": "none",
+    "type": "counter",
+    "description": "Displays the number of classes that are currently loaded in the Java virtual machine.",
+    "displayName": "Current Loaded Class Count"
+  },
+...
+  "jvm.uptime": {
+    "unit": "milliseconds",
+    "type": "gauge",
+    "description": "Displays the start time of the Java virtual machine in milliseconds. This attribute displays the approximate time when the Java virtual machine started.",
+    "displayName": "JVM Uptime"
+  },
+...
+  "memory.usedHeap": {
+    "unit": "bytes",
+    "type": "gauge",
+    "description": "Displays the amount of used heap memory in bytes.",
+    "displayName": "Used Heap Memory"
+  }
+}
+----
+
+
+=== Application specific metrics data
+
+You can create application specific custom metrics and integrate them with Helidon
+using the CDI.  To add a new metric in MP, simply annotate the JAX-RS resource with one of the annotations.
+
+[source,java]
+.modify GreetResource.getDefaultMessage to add @Timed
+----
+import org.eclipse.microprofile.metrics.annotation.Timed;
+
+//...
+@GET
+@Produces(MediaType.APPLICATION_JSON)
+@Timed
+public JsonObject getDefaultMessage() {
+    return createResponse("World");
+}
+----
+
+[source,bash]
+.Build and restart the application, then verify the application metrics endpoint
+----
+curl http://localhost:8080/greet
+curl http://localhost:8080/metrics/application
+curl http://localhost:8080/greet
+curl http://localhost:8080/metrics/application
+----
+
+Notice that the metrics change when you call /greet a second time.   This is because the times are averages
+
+[source,json]
+.JSON response:
+----
+{
+  "io.helidon.examples.quickstart.mp.GreetResource.getDefaultMessage": {
+    "count": 0,
+...
+    "p999": 0.0
+  }
+}
+----
+
+==== Tagged metrics
+
+
+=== Prometheus metrics data
