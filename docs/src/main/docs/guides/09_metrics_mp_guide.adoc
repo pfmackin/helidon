@@ -215,15 +215,25 @@ You can create application specific metrics and integrate them with Helidon usin
 To add a new metric, simply annotate the JAX-RS resource with one of the metric annotations. Metrics can
 be injected at the class, method, and field levels.  This document when show examples of all three.
 
+Application metrics must be created and registered in the applicaton MetricRegistry.  The registry
+stores metrics and their metadata, plus provides methods to register, create and retrieve metrics and their respective metadata.
+The metrics will exist for the lifetime of the application.  For annotated metrics, the creation and registration
+is automatically done by Helidon.  Each metric annotation has a set of fields, where some are optional and others are mandatory.
+For example, 'name' is an optional metric annotaiton field.
+
 ==== Method level metrics
 
-The following example will demonstrate how to use the @Counted annotation to track the number of times
-the /cards/birthday endpoint is called.
+There are 3 metrics that you can use by using the following method annotions:
 
-NOTE: You must set @Counted monotonic field to `true` to force the count to increment rather than decrement.
+1. @Counted - Register a Counter metric
+2. @Timed - Register a Timer metric
+3. @Metered - Register a Timer metric
+
+The following example will demonstrate how to use the @Counted annotation to track the number of times
+the /cards endpoint is called.
 
 [source,java]
-.Create a new class `GreetingCards' with the following:
+.Create a new class `GreetingCards' with the following code:
 ----
 package io.helidon.examples.quickstart.mp;
 
@@ -238,22 +248,21 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import org.eclipse.microprofile.metrics.annotation.Counted;
 
-@Path("/cards") // <1>
+@Path("/cards") //<1>
 @RequestScoped // <2>
 public class GreetingCards {
 
   private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
 
-  @Path("/birthday") // <3>
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "birthday-cards", monotonic = true) // <4>
-  public JsonObject birthday() throws InterruptedException {
-    return createResponse("Here are some birthday cards ...");
+  @Counted(name = "any-card", monotonic = true)
+  public JsonObject anyCard() throws InterruptedException {
+    return createResponse("Here are some random cards ...");
   }
 
   private JsonObject createResponse(String msg) {
-    return JSON.createObjectBuilder().add("message", msg + " response").build();
+    return JSON.createObjectBuilder().add("message", msg).build();
   }
 }
 ----
@@ -263,16 +272,17 @@ as `/cards`
 request scoped.  The request scope is active only for the duration of
 one web service invocation and it is destroyed at the end of that
 invocation.
-<3> The path for this method is `cards\birthday`
-<4> The annotation @Counted will bind a counter metric to this method.  The counter is incremened each time the birthday method is called.
+<3> The annotation @Counted will register a counter metric for this method, creating it if neccessary.  The counter is incremened each time the anyCards method is called.
 The `name` attribute is optional
 
+NOTE: You must set @Counted monotonic field to `true` to force the count to increment rather than decrement.
+
 
 [source,bash]
 .Build and run the application, then invoke the application metrics endpoints below
 ----
-curl http://localhost:8080/cards/birthday
-curl http://localhost:8080/cards/birthday
+curl http://localhost:8080/cards
+curl http://localhost:8080/cards
 curl http://localhost:8080/metrics/application
 ----
 
@@ -280,34 +290,15 @@ curl http://localhost:8080/metrics/application
 .JSON response:
 ----
 {
-  "io.helidon.examples.quickstart.mp.GreetingCards.birthday-cards": 2 // <1>
+  "io.helidon.examples.quickstart.mp.GreetingCards.any-card":2 // <1>
 }
 ----
-<1> The application metrics count will be 2, since you called the birthday endpoint twice.
+<1> The application metrics count will be 2, since you invoked the endpoint twice.
 
-Notice the counter is fully qualified.  You remove the package prefix by using the `absolute=true` field in the @Counted annotation
+NOTE: Notice the counter is fully qualified.  You remove the package prefix by using the `absolute=true` field in the @Counted annotation
 
-[source,java]
-.Modify the @Counted annotation in `GreetingCards.java'
-----
-  @Counted(name = "birthday-cards", monotonic = true, absolute = true)
-----
 
-[source,bash]
-.Build and run the application, then invoke the application metrics endpoints below
-----
-curl http://localhost:8080/cards/birthday
-curl http://localhost:8080/metrics/application
-----
 
-[source,json]
-.JSON response:
-----
-{
-  "birthday-cards": 1 // <1>
-}
-----
-<1> The application metrics count will use the short name, `birthday-cards`.
 
 ==== Class level metrics
 
@@ -475,7 +466,7 @@ curl http://localhost:8080/metrics/application
 ----
 <1> The cache was hit 2 times out of 5 queries
 
-
+==== Non-injected metrics
 
 ==== Tagged metrics
 
