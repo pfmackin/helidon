@@ -215,7 +215,7 @@ You can create application specific metrics and integrate them with Helidon usin
 To add a new metric, simply annotate the JAX-RS resource with one of the metric annotations. Metrics can
 be injected at the class, method, and field levels.  This document when show examples of all three.
 
-Application metrics must be created and registered in the applicaton MetricRegistry.  The registry
+Application metrics must be created and registered in the application MetricRegistry.  The registry
 stores metrics and their metadata, plus provides methods to register, create and retrieve metrics and their respective metadata.
 The metrics will exist for the lifetime of the application.  For annotated metrics, the creation and registration
 is automatically done by Helidon.  Each metric annotation has a set of fields, where some are optional and others are mandatory.
@@ -671,7 +671,7 @@ curl http://localhost:8080/metrics/application
 
 ==== Gauge metric
 
-The metrics we have examined so far are updated in response to an applicaiton REST request, i.e GET /cards.  These
+The metrics we have examined so far are updated in response to an application REST request, i.e GET /cards.  These
 metrics can be declared in a request scoped class and Helidon will store the metric in the MetricRegistry so the value persists
 across requests. When GET /metrics/applcation is invokes, Helidon will return the current value of the metric stored in the MetricRegistry.
 The Gauge metric is different from all the other metrics. The application must provide a getter to return the gauge value in an
@@ -765,7 +765,7 @@ curl http://localhost:8080/metrics/application
 ----
 <1> The application has been running for 6 seconds.
 
-=== Integration with Kubernetes
+=== Integration with Kubernetes and Prometheus
 
 This example shows how to integrate the Helidon MP applcation with Kubernetes.
 
@@ -846,9 +846,7 @@ curl http://localhost:30116/metrics
 
 NOTE: Leave the application running in Kubernetes since it will be used for Prometheus integration.
 
-----
-
-=== Prometheus integration
+==== Prometheus integration
 
 The metrics services that you just deployed into Kubernetes is already annotated with `prometheus.io/scrape:`.  This will allow
 Prometheus to discover the service and scrape the metrics.  Lets install Prometheus and see that it discovered the Helidon metrics;
@@ -864,7 +862,6 @@ kubectl get pod $POD_NAME
 [source,bash]
 .You will see an output similar to this
 ----
-NAME                                         READY   STATUS    RESTARTS   AGE
 metrics-prometheus-server-5fc5dc86cb-79lk4   2/2     Running   0          5m31s
 ----
 
@@ -875,19 +872,31 @@ kubectl --namespace default port-forward $POD_NAME 7090:9090
 ----
 
 Now open your browser and navigate to `http://localhost:7090/targets`.  Search for helidon on the page and you will see your
-Helidon applicaiton as one of the Prometheus targets.
+Helidon application as one of the Prometheus targets.
 
+
+==== Final cleanup
+
+You can now delete the Kubernetes resources that were just created during this example.
 
 [source,bash]
-.Delete the prometheus resources
+.Delete the prometheus kubernetes resources
 ----
-helm delete --purge metrics----
-
+helm delete --purge metrics
+----
 
 [source,bash]
-.Delete the application, cleaning up kubernetes resources
+.Delete the application kubernetes resources
 ----
 kubectl delete -f ./metrics.yaml
 ----
+
+=== Summary
+
+To summaryize, this guide demonstrated how to use metrics in a Helidon MP application:
+
+* Access metrics for all 3 scopes: base, vendor, and application
+* Configure application metrics at the class, method, and field level
+* Integrate Helidon metrics with Kubernetes and Prometheus
 
 
