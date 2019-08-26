@@ -341,11 +341,10 @@ curl http://localhost:8080/metrics/application
 
 NOTE: Notice the counter is fully qualified.  You can remove the package prefix by using the `absolute=true` field in the @Counted annotation
 
-===== Additional Method level metrics
+==== Additional method level metrics
 
-You can annotate the same method with the other 2 metrics: @Timed and @Metered. When using multiple annoations on a method
-you *must* give the metrics different names using the annoation `name` field
-
+The @Timed and @Metered can also be used to annotate a method.  For this example. you can just annotate the same method with the these metrics.
+When using multiple annoations on a method you *must* give the metrics different names using the annoation `name` field
 
 [source,java]
 .Create a new class `GreetingCards' with the following code:
@@ -427,6 +426,82 @@ public class GreetingCards {
 <2> Notice the Timer metric also includes the Meter fields (it is a superset of Meter)
 
 
+==== Reusing metrics
+
+You can share a metric across multiple endpoints by specifying the reusable field in the metric annotation as
+demonstrated below.
+
+[source,java]
+.Update the `GreetingCards` class with the following code:
+----
+package io.helidon.examples.quickstart.mp;
+
+import java.util.Collections;
+import javax.enterprise.context.RequestScoped;
+import javax.json.Json;
+import javax.json.JsonBuilderFactory;
+import javax.json.JsonObject;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import org.eclipse.microprofile.metrics.annotation.Counted;
+
+@Path("/cards")
+@RequestScoped
+public class GreetingCards {
+
+  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
+
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  @Counted(name = "anyCard",absolute = true, monotonic = true)
+  public JsonObject anyCard() throws InterruptedException {
+    return createResponse("Here are some cards ...");
+  }
+
+  @GET
+  @Path("/birthday")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Counted(name = "specialEventCard", absolute = true, monotonic = true, reusable = true)  // <1>
+  public JsonObject birthdayCard() throws InterruptedException {
+    return createResponse("Here are some birthday cards ...");
+  }
+
+  @GET
+  @Path("/wedding")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Counted(name = "specialEventCard", absolute = true, monotonic = true, reusable = true)  // <1>
+  public JsonObject weddingCard() throws InterruptedException {
+    return createResponse("Here are some wedding cards ...");
+  }
+
+  private JsonObject createResponse(String msg) {
+    return JSON.createObjectBuilder().add("message", msg).build();
+  }
+}
+----
+<1>  Both /birthday and /wedding use the same Counter metric, named `specialEventCard`
+
+[source,bash]
+.Build and run the application, then invoke the following endpoints
+----
+curl  http://localhost:8080/cards/wedding
+curl  http://localhost:8080/cards//birthday
+curl  http://localhost:8080/cards
+----
+
+[source,json]
+.JSON response from /metrics/application
+----
+{
+"anyCard": 1,
+"specialEventCard": 2  // <1>
+}
+----
+<1> Notice that specialEventCard count is 2, since you accessed /cards/wedding and /cards/birthday
+
+
 ==== Class level metrics
 
 You can collect metrics at the class level to aggregate data from all methods in that class using that same metric.
@@ -500,81 +575,6 @@ curl http://localhost:8080/metrics/application
 <1> The totalCards count is a total of all the method level counter metrics.  Class level names are always
 fully qualified.
 
-
-==== Reusing Metrics
-
-You can share a metric across multiple endpoints by specifying the reusable field in the metric annotation as
-demonstrated below.
-
-[source,java]
-.Update the `GreetingCards` class with the following code to simplify the metrics output:
-----
-package io.helidon.examples.quickstart.mp;
-
-import java.util.Collections;
-import javax.enterprise.context.RequestScoped;
-import javax.json.Json;
-import javax.json.JsonBuilderFactory;
-import javax.json.JsonObject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.metrics.annotation.Counted;
-
-@Path("/cards")
-@RequestScoped
-public class GreetingCards {
-
-  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
-
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "anyCard",absolute = true, monotonic = true)
-  public JsonObject anyCard() throws InterruptedException {
-    return createResponse("Here are some random cards ...");
-  }
-
-  @GET
-  @Path("/birthday")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "specialEventCard", absolute = true, monotonic = true, reusable = true)  // <1>
-  public JsonObject birthdayCard() throws InterruptedException {
-    return createResponse("Here are some birthday cards ...");
-  }
-
-  @GET
-  @Path("/wedding")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "specialEventCard", absolute = true, monotonic = true, reusable = true)  // <1>
-  public JsonObject weddingCard() throws InterruptedException {
-    return createResponse("Here are some wedding cards ...");
-  }
-
-  private JsonObject createResponse(String msg) {
-    return JSON.createObjectBuilder().add("message", msg).build();
-  }
-}
-----
-<1>  Both /birthday and /wedding use the same Counter metric, named `specialEventCard`
-
-[source,bash]
-.Build and run the application, then invoke the following endpoints
-----
-curl  http://localhost:8080/cards/wedding
-curl  http://localhost:8080/cards//birthday
-curl  http://localhost:8080/cards
-----
-
-[source,json]
-.JSON response from /metrics/application
-----
-{
-"anyCard": 1,
-"specialEventCard": 2  // <1>
-}
-----
-<1> Notice that specialEventCard count is 2, since you accessed /cards/wedding and /cards/birthday
 
 ==== Field level metrics
 
