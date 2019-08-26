@@ -165,7 +165,7 @@ curl -H "Accept: application/json"  http://localhost:8080/metrics/vendor/grpc.re
 
 NOTE: You cannot get the individual fields of a metric. For example, you cannot target http://localhost:8080/metrics/vendor/grpc.requests.meter.count
 
-=== Metrics Metadata
+=== Metrics metadata
 
 Each metric has a associated metadata that describes:
 
@@ -669,7 +669,7 @@ curl http://localhost:8080/metrics/application
 ----
 <1> The cache was hit 1 times out of 5 queries
 
-==== Gauge Metric
+==== Gauge metric
 
 The metrics we have examined so far are updated in response to an applicaiton REST request, i.e GET /cards.  These
 metrics can be declared in a request scoped class and Helidon will store the metric in the MetricRegistry so the value persists
@@ -784,21 +784,23 @@ metadata:
   name: helidon-metrics // <1>
   labels:
     app: helidon-metrics
+  annotations:
+    prometheus.io/scrape: 'true' // <2>
 spec:
   type: NodePort
   selector:
     app: helidon-metrics
   ports:
-    - port: 8081
-      targetPort: 8081
+    - port: 8080
+      targetPort: 8080
       name: http
 ---
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
-  name: helidon-metrics // <2>
+  name: helidon-metrics
 spec:
-  replicas: 1
+  replicas: 1 // <3>
   template:
     metadata:
       labels:
@@ -810,15 +812,11 @@ spec:
           image: helidon-metrics-mp
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8081
----
+            - containerPort: 8080
 ----
 <1> A service of type `NodePort` that serves the default routes on port `8080`.
-<2> A deployment with one replica of a pod.
-<3> The HTTP endpoint for the liveness probe.
-<4> The liveness probe configuration.
-<5> The HTTP endpoint for the readiness probe.
-<6> The readiness probe configuration.
+<2> Annotation will allow Prometheus to discover and scrape this pod.
+<3> A deployment with one replica of a pod.
 
 
 [source,bash]
@@ -846,13 +844,50 @@ helidon-health   NodePort   10.107.226.62   <none>        8080:30116/TCP   4s //
 curl http://localhost:30116/metrics
 ----
 
+NOTE: Leave the application running in Kubernetes since it will be used for Prometheus integration.
+
+----
+
+=== Prometheus integration
+
+The metrics services that you just deployed into Kubernetes is already annotated with `prometheus.io/scrape:`.  This will allow
+Prometheus to discover the service and scrape the metrics.  Lets install Prometheus and see that it discovered the Helidon metrics;
+
+[source,bash]
+.Install Prometheus and wait until the pod is ready
+----
+helm install stable/prometheus --name metrics
+export POD_NAME=$(kubectl get pods --namespace default -l "app=prometheus,component=server" -o jsonpath="{.items[0].metadata.name}")
+kubectl get pod $POD_NAME
+----
+
+[source,bash]
+.You will see an output similar to this
+----
+NAME                                         READY   STATUS    RESTARTS   AGE
+metrics-prometheus-server-5fc5dc86cb-79lk4   2/2     Running   0          5m31s
+----
+
+[source,bash]
+.Create a port-forward so you can access the server URL
+----
+kubectl --namespace default port-forward $POD_NAME 7090:9090
+----
+
+Now open your browser and navigate to `http://localhost:7090/targets`.  Search for helidon on the page and you will see your
+Helidon applicaiton as one of the Prometheus targets.
+
+
+[source,bash]
+.Delete the prometheus resources
+----
+helm delete --purge metrics----
+
 
 [source,bash]
 .Delete the application, cleaning up kubernetes resources
 ----
 kubectl delete -f ./metrics.yaml
 ----
-
-=== Prometheus metrics data
 
 
