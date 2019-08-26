@@ -592,10 +592,15 @@ curl http://localhost:8080/metrics/application
 ----
 <1> The cache was hit 1 times out of 5 queries
 
-==== Non-injected annotated metrics
+==== Gauge Metric
 
-Certain metrics, like Gauge, cannot be automatically injected into a managed object, but you can still use annotion so
-that Helidon registers the metric in the MetricRegistry.
+The metrics we have examined so far are updated in response to an applicaiton REST request, i.e GET /cards.  These
+metrics can be declared in a request scoped class and Helidon will store the metric in the MetricRegistry so the value persists
+across requests. When GET /metrics/applcation is invokes, Helidon will return the current value of the metric stored in the MetricRegistry.
+The Gauge metric is different from all the other metrics. The application must provide a getter to return the gauge value in an
+application scoped class. When GET /metrics/applcation is invokes, Helidon will call the Gauge getter, store that value
+in the MetricsRegistry, and return it as part of the metrics response payload.  So metric value is updated real-time in response to the
+get metrics request.
 
 The following example demonstrates how to use a Gauge to track application up-time.
 
@@ -648,8 +653,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import org.eclipse.microprofile.metrics.annotation.Counted;
 
-@Path("/cards") // <1>
-@RequestScoped // <2>
+@Path("/cards")
+@RequestScoped
 public class GreetingCards {
 
   private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
