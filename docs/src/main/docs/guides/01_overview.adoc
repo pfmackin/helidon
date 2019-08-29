@@ -66,4 +66,11 @@ Learn how to deploy your application to Oracle Cloud Infrastructure Container
  Engine for Kubernetes (OKE).
 --
 
+[CARD]
+.MP Configuration Guide
+[link=guides/11_config_mp_guide.adoc]
+--
+Learn how to configure Helidon MP applications.
+--
+
 ====
