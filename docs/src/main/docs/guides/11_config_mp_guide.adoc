@@ -16,12 +16,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-= Metrics MP Guide
-:description: Helidon metrics
-:keywords: helidon, metrics, microprofile, guide
+= Configuration MP Guide
+:description: Helidon configuration
+:keywords: helidon, configuration, microprofile, guide
 
 This guide describes how to create a sample MicroProfile (MP) project
-that can be used to run some basic examples using both built-in and custom metrics with Helidon MP.
+that can be used to run some basic examples using both built-in and custom configuration with Helidon MP.
 
 == What you need
 
@@ -47,18 +47,19 @@ mvn archetype:generate -DinteractiveMode=false \
     -Dpackage=io.helidon.examples.quickstart.mp
 ----
 
-=== Using the built-in metrics
+=== Configuration sources
 
-Helidon provides three scopes of metrics: base, vendor, and application.  Helidon automatically provides built-in base and vendor metrics.
-Applications can use these metrics without additional configuration or code changes.  Here are the metric endpoints:
+You can configure Helidon to read configuration data from a variety of sources, in several formats.
+By default, Helidon will load  the configuration specified in `META-INF\microprofile-config.properties`,
+which defines properties using Java Property format (name/value), for example, `server.port=8080`.
 
-1. `/metrics/base` - Base metrics data as specified by the MicroProfile Metrics specification.
-2. `/metrics/vendor` - Helidon-specific metrics data.
-3. `/metrics/application` - Application-specific metrics data.
+1. `/configuration/base` - Base configuration data as specified by the MicroProfile Configuration specification.
+2. `/configuration/vendor` - Helidon-specific configuration data.
+3. `/configuration/application` - Application-specific configuration data.
 
-NOTE: The `/metrics` endpoint will return data for all scopes.
+NOTE: The `/configuration` endpoint will return data for all scopes.
 
-The following example will demonstrate how to use the built-in metrics.  All examples are executed
+The following example will demonstrate how to use the built-in configuration.  All examples are executed
 from the root directory of your project (helidon-quickstart-mp).
 
 [source,bash]
@@ -68,13 +69,13 @@ mvn package -DskipTests=true
 java -jar target/helidon-quickstart-mp.jar
 ----
 
-NOTE: Metrics can be returned in either text format (the default), or JSON.  The text format uses Prometheus Text Format,
+NOTE: Configuration can be returned in either text format (the default), or JSON.  The text format uses Prometheus Text Format,
 see https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details.
 
 [source,bash]
-.Verify the metrics endpoint in a new terminal window:
+.Verify the configuration endpoint in a new terminal window:
 ----
-curl http://localhost:8080/metrics
+curl http://localhost:8080/configuration
 ----
 
 [source,text]
@@ -92,9 +93,9 @@ base:classloader_total_loaded_class_count 7512
 You can get the same data in JSON format.
 
 [source,bash]
-.Verify the metrics endpoint with an HTTP accept header:
+.Verify the configuration endpoint with an HTTP accept header:
 ----
-curl -H "Accept: application/json"  http://localhost:8080/metrics
+curl -H "Accept: application/json"  http://localhost:8080/configuration
 ----
 
 [source,json]
@@ -140,12 +141,12 @@ curl -H "Accept: application/json"  http://localhost:8080/metrics
 }
 ----
 
-You can get a single metric by specifying the name in the URL path.
+You can get a single configuration by specifying the name in the URL path.
 
 [source,bash]
-.Get the Helidon `grpc.requests.meter` metric:
+.Get the Helidon `grpc.requests.meter` configuration:
 ----
-curl -H "Accept: application/json"  http://localhost:8080/metrics/vendor/grpc.requests.meter
+curl -H "Accept: application/json"  http://localhost:8080/configuration/vendor/grpc.requests.meter
 ----
 
 [source,json]
@@ -162,22 +163,22 @@ curl -H "Accept: application/json"  http://localhost:8080/metrics/vendor/grpc.re
 }
 ----
 
-NOTE: You cannot get the individual fields of a metric. For example, you cannot target http://localhost:8080/metrics/vendor/grpc.requests.meter.count.
+NOTE: You cannot get the individual fields of a configuration. For example, you cannot target http://localhost:8080/configuration/vendor/grpc.requests.meter.count.
 
-=== Metrics metadata
+=== Configuration metadata
 
-Each metric has associated metadata that describes:
+Each configuration has associated metadata that describes:
 
-1. name: The name of the metric.
-2. units: The unit of the metric such as time (seconds, millisecond), size (bytes, megabytes), etc.
-3. type: The type of metric: `Counter`, `Timer`, `Meter`, `Histogram`, or `Gauge`.
+1. name: The name of the configuration.
+2. units: The unit of the configuration such as time (seconds, millisecond), size (bytes, megabytes), etc.
+3. type: The type of configuration: `Counter`, `Timer`, `Meter`, `Histogram`, or `Gauge`.
 
-You can get the metadata for any scope, such as `/metrics/base`, as shown below:
+You can get the metadata for any scope, such as `/configuration/base`, as shown below:
 
 [source,bash]
-.Get the metrics metadata using HTTP OPTIONS method:
+.Get the configuration metadata using HTTP OPTIONS method:
 ----
- curl -X OPTIONS -H "Accept: application/json"  http://localhost:8080/metrics/base
+ curl -X OPTIONS -H "Accept: application/json"  http://localhost:8080/configuration/base
 ----
 
 [source,json]
@@ -208,23 +209,23 @@ You can get the metadata for any scope, such as `/metrics/base`, as shown below:
 ----
 
 
-=== Application-specific metrics data
+=== Application-specific configuration data
 
-You can create application-specific metrics and integrate them with Helidon using CDI.
-To add a new metric, simply annotate the JAX-RS resource with one of the metric annotations. Metrics can
+You can create application-specific configuration and integrate them with Helidon using CDI.
+To add a new configuration, simply annotate the JAX-RS resource with one of the configuration annotations. Configuration can
 be injected at the class, method, and field-levels.  This document shows examples of all three.
 
-Helidon will automatically create and register annotated application metrics and store them in the application `MetricRegistry`, which
-also contains the metric metadata. The metrics will exist for the lifetime of the application.
-Each metric annotation has mandatory and optional fields. The name field, for example, is optional.
+Helidon will automatically create and register annotated application configuration and store them in the application `MetricRegistry`, which
+also contains the configuration metadata. The configuration will exist for the lifetime of the application.
+Each configuration annotation has mandatory and optional fields. The name field, for example, is optional.
 
-==== Method level metrics
+==== Method level configuration
 
-There are three metrics that you can use by annotating a method:
+There are three configuration that you can use by annotating a method:
 
-1. `@Counted` - Register a `Counter` metric
-2. `@Timed` - Register a `Timer` metric
-3. `@Metered` - Register a `Meter` metric
+1. `@Counted` - Register a `Counter` configuration
+2. `@Timed` - Register a `Timer` configuration
+3. `@Metered` - Register a `Meter` configuration
 
 The following example will demonstrate how to use the `@Counted` annotation to track the number of times
 the `/cards` endpoint is called.
@@ -243,7 +244,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.configuration.annotation.Counted;
 
 @Path("/cards") //<1>
 @RequestScoped // <2>
@@ -269,7 +270,7 @@ as `/cards`.
 request scoped.  The request scope is active only for the duration of
 one web service invocation and it is destroyed at the end of that
 invocation.
-<3> The annotation `@Counted` will register a `Counter` metric for this method, creating it if needed.
+<3> The annotation `@Counted` will register a `Counter` configuration for this method, creating it if needed.
 The counter is incremented each time the anyCards method is called.  The `name` attribute is optional.
 
 NOTE: You must set `monotonic` field to `true` to force the count to increment when entering the method.
@@ -292,7 +293,7 @@ public Set<Class<?>> getClasses() {
 ----
 curl http://localhost:8080/cards
 curl http://localhost:8080/cards
-curl -H "Accept: application/json"  http://localhost:8080/metrics/application
+curl -H "Accept: application/json"  http://localhost:8080/configuration/application
 ----
 
 [source,json]
@@ -307,10 +308,10 @@ curl -H "Accept: application/json"  http://localhost:8080/metrics/application
 NOTE: Notice the counter is fully qualified.  You can remove the package prefix by using the `absolute=true` field in the `@Counted` annotation.
 You must use  `absolute=false` for class-level annotations.
 
-==== Additional method-level metrics
+==== Additional method-level configuration
 
-The `@Timed` and `@Metered` annotations can also be used with a method.  For the following example. you can just annotate the same method with these metrics.
-When using multiple annoations on a method, you *must* give the metrics different names as shown below.
+The `@Timed` and `@Metered` annotations can also be used with a method.  For the following example. you can just annotate the same method with these configuration.
+When using multiple annoations on a method, you *must* give the configuration different names as shown below.
 
 [source,java]
 .Update the `GreetingCards` class with the following code:
@@ -326,10 +327,10 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.metrics.MetricUnits;
-import org.eclipse.microprofile.metrics.annotation.Counted;
-import org.eclipse.microprofile.metrics.annotation.Metered;
-import org.eclipse.microprofile.metrics.annotation.Timed;
+import org.eclipse.microprofile.configuration.MetricUnits;
+import org.eclipse.microprofile.configuration.annotation.Counted;
+import org.eclipse.microprofile.configuration.annotation.Metered;
+import org.eclipse.microprofile.configuration.annotation.Timed;
 
 @Path("/cards")
 @RequestScoped
@@ -352,16 +353,16 @@ public class GreetingCards {
 }
 
 ----
-<1> Specify a custom name for the `Counter` metric and set `absolute=true` to remove the path prefix from the name.
-<2> Add the `@Metered` annotation to get a `Meter` metric.
-<3> Add the `@Timed` annotation to get a `Timer` metric.
+<1> Specify a custom name for the `Counter` configuration and set `absolute=true` to remove the path prefix from the name.
+<2> Add the `@Metered` annotation to get a `Meter` configuration.
+<3> Add the `@Timed` annotation to get a `Timer` configuration.
 
 [source,bash]
 .Build and run the application, then invoke the application endpoints below:
 ----
 curl http://localhost:8080/cards
 curl http://localhost:8080/cards
-curl -H "Accept: application/json"  http://localhost:8080/metrics/application
+curl -H "Accept: application/json"  http://localhost:8080/configuration/application
 ----
 
 
@@ -396,13 +397,13 @@ curl -H "Accept: application/json"  http://localhost:8080/metrics/application
   }
 }
 ----
-<1> The `Meter` metric includes the count field (it is a superset of `Counter`).
-<2> The `Timer` metric includes the `Meter` fields (it is a superset of `Meter`).
+<1> The `Meter` configuration includes the count field (it is a superset of `Counter`).
+<2> The `Timer` configuration includes the `Meter` fields (it is a superset of `Meter`).
 
 
-==== Reusing metrics
+==== Reusing configuration
 
-You can share a metric across multiple endpoints by specifying the reusable field in the metric annotation as
+You can share a configuration across multiple endpoints by specifying the reusable field in the configuration annotation as
 demonstrated below.
 
 [source,java]
@@ -419,7 +420,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.configuration.annotation.Counted;
 
 @Path("/cards")
 @RequestScoped
@@ -455,8 +456,8 @@ public class GreetingCards {
   }
 }
 ----
-<1>  The `/birthday` endpoint uses a `Counter` metric, named `specialEventCard`.
-<2>  The `/wedding` endpoint uses the same `Counter` metric, named `specialEventCard`.
+<1>  The `/birthday` endpoint uses a `Counter` configuration, named `specialEventCard`.
+<2>  The `/wedding` endpoint uses the same `Counter` configuration, named `specialEventCard`.
 
 
 [source,bash]
@@ -465,11 +466,11 @@ public class GreetingCards {
 curl  http://localhost:8080/cards/wedding
 curl  http://localhost:8080/cards/birthday
 curl  http://localhost:8080/cards
-curl -H "Accept: application/json"  http://localhost:8080/metrics/application
+curl -H "Accept: application/json"  http://localhost:8080/configuration/application
 ----
 
 [source,json]
-.JSON response from `/metrics/application`:
+.JSON response from `/configuration/application`:
 ----
 {
 "anyCard": 1,
@@ -479,11 +480,11 @@ curl -H "Accept: application/json"  http://localhost:8080/metrics/application
 <1> Notice that `specialEventCard` count is two, since you accessed `/cards/wedding` and `/cards/birthday`.
 
 
-==== Class-level metrics
+==== Class-level configuration
 
-You can collect metrics at the class-level to aggregate data from all methods in that class using the same metric.
-The following example introduces a metric to count all card queries.  In the following example, the method-level metrics are not
-needed to aggregate the counts, but they are left in the example to demonstrate the combined output of all three metrics.
+You can collect configuration at the class-level to aggregate data from all methods in that class using the same configuration.
+The following example introduces a configuration to count all card queries.  In the following example, the method-level configuration are not
+needed to aggregate the counts, but they are left in the example to demonstrate the combined output of all three configuration.
 
 [source,java]
 .Update the `GreetingCards` class with the following code:
@@ -499,7 +500,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.configuration.annotation.Counted;
 
 @Path("/cards")
 @RequestScoped
@@ -530,18 +531,18 @@ public class GreetingCards {
 ----
 <1> This class is annotated with `@Counted`, which aggregates count data from all the method that have a `Count` annotation.
 <2> Use `absolute=true` to remove path prefix for method-level annotations.
-<3> Add a method with a `Counter` metric to get birthday cards.
+<3> Add a method with a `Counter` configuration to get birthday cards.
 
 [source,bash]
 .Build and run the application, then invoke the following endpoints:
 ----
 curl http://localhost:8080/cards
 curl http://localhost:8080/cards/birthday
-curl -H "Accept: application/json"  http://localhost:8080/metrics/application
+curl -H "Accept: application/json"  http://localhost:8080/configuration/application
 ----
 
 [source,json]
-.JSON response from `/metrics/application`:
+.JSON response from `/configuration/application`:
 ----
 {
   "anyCard": 1,
@@ -549,16 +550,16 @@ curl -H "Accept: application/json"  http://localhost:8080/metrics/application
   "io.helidon.examples.quickstart.mp.totalCards.GreetingCards": 2  // <1>
 }
 ----
-<1> The `totalCards` count is a total of all the method-level `Counter` metrics.  Class level metric names are always
+<1> The `totalCards` count is a total of all the method-level `Counter` configuration.  Class level configuration names are always
 fully qualified.
 
 
-==== Field-level metrics
+==== Field-level configuration
 
-Field level metrics can be injected into managed objects, but they need to be updated by the application code.
+Field level configuration can be injected into managed objects, but they need to be updated by the application code.
 This annotation can be used on fields of type `Meter`, `Timer`, `Counter`, and `Histogram`.
 
-The following example shows how to use a field-level `Counter` metric to track cache hits.
+The following example shows how to use a field-level `Counter` configuration to track cache hits.
 
 [source,java]
 .Update the `GreetingCards` class with the following code:
@@ -576,9 +577,9 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.metrics.Counter;
-import org.eclipse.microprofile.metrics.annotation.Counted;
-import org.eclipse.microprofile.metrics.annotation.Metric;
+import org.eclipse.microprofile.configuration.Counter;
+import org.eclipse.microprofile.configuration.annotation.Counted;
+import org.eclipse.microprofile.configuration.annotation.Metric;
 
 @Path("/cards")
 @RequestScoped
@@ -619,7 +620,7 @@ public class GreetingCards {
   }
 }
 ----
-<1> A `Counter` metric field, `cacheHits`, is automatically injected by Helidon.
+<1> A `Counter` configuration field, `cacheHits`, is automatically injected by Helidon.
 <2> Call `updateStats()` to update the cache hits.
 <3> Call `updateStats()` to update the cache hits.
 <4> Randomly increment the `cacheHits` counter.
@@ -632,11 +633,11 @@ curl http://localhost:8080/cards
 curl http://localhost:8080/cards/birthday
 curl http://localhost:8080/cards/birthday
 curl http://localhost:8080/cards/birthday
-curl -H "Accept: application/json"  http://localhost:8080/metrics/application
+curl -H "Accept: application/json"  http://localhost:8080/configuration/application
 ----
 
 [source,json]
-.JSON response from `/metrics/application`:
+.JSON response from `/configuration/application`:
 ----
 {
   "anyCard": 2,
@@ -647,20 +648,20 @@ curl -H "Accept: application/json"  http://localhost:8080/metrics/application
 ----
 <1> The cache was hit two times out of five queries.
 
-==== Gauge metric
+==== Gauge configuration
 
-The metrics you have tested so far are updated in response to an application REST request, i.e GET `/cards`.  These
-metrics can be declared in a request scoped class and Helidon will store the metric in the `MetricRegistry`, so the value persists
-across requests. When GET `/metrics/application` is invoked, Helidon will return the current value of the metric stored in the `MetricRegistry`.
-The `Gauge` metric is different from all the other metrics. The application must provide a getter to return the gauge value in an
-application scoped class. When GET `/metrics/application` is invoked, Helidon will call the `Gauge` getter, store that value
-in the `MetricsRegistry`, and return it as part of the metrics response payload.  So, the `Gauge` metric value is updated real-time, in response to the
-get metrics request.
+The configuration you have tested so far are updated in response to an application REST request, i.e GET `/cards`.  These
+configuration can be declared in a request scoped class and Helidon will store the configuration in the `MetricRegistry`, so the value persists
+across requests. When GET `/configuration/application` is invoked, Helidon will return the current value of the configuration stored in the `MetricRegistry`.
+The `Gauge` configuration is different from all the other configuration. The application must provide a getter to return the gauge value in an
+application scoped class. When GET `/configuration/application` is invoked, Helidon will call the `Gauge` getter, store that value
+in the `ConfigurationRegistry`, and return it as part of the configuration response payload.  So, the `Gauge` configuration value is updated real-time, in response to the
+get configuration request.
 
 The following example demonstrates how to use a `Gauge` to track application up-time.
 
 [source,java]
-.Create a new `GreetingCardsAppMetrics` class with the following code:
+.Create a new `GreetingCardsAppConfiguration` class with the following code:
 ----
 package io.helidon.examples.quickstart.mp;
 
@@ -669,10 +670,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.context.Initialized;
 import javax.enterprise.event.Observes;
-import org.eclipse.microprofile.metrics.annotation.Gauge;
+import org.eclipse.microprofile.configuration.annotation.Gauge;
 
 @ApplicationScoped // <1>
-public class GreetingCardsAppMetrics {
+public class GreetingCardsAppConfiguration {
 
   private AtomicLong startTime = new AtomicLong(0); // <2>
 
@@ -686,14 +687,14 @@ public class GreetingCardsAppMetrics {
   }
 }
 ----
-<1> This managed object must be application scoped to properly register and use the `Gauge` metric.
+<1> This managed object must be application scoped to properly register and use the `Gauge` configuration.
 <2> Declare an `AtomicLong` field to hold the start time of the application.
 <3> Initialize the application start time.
-<4> Return the application `appUpTimeSeconds` metric, which will be included in the application metrics.
+<4> Return the application `appUpTimeSeconds` configuration, which will be included in the application configuration.
 
 
 [source,java]
-.Update the `GreetingCards` class with the following code to simplify the metrics output:
+.Update the `GreetingCards` class with the following code to simplify the configuration output:
 ----
 package io.helidon.examples.quickstart.mp;
 
@@ -706,7 +707,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.configuration.annotation.Counted;
 
 @Path("/cards")
 @RequestScoped
@@ -728,17 +729,17 @@ public class GreetingCards {
 ----
 
 [source,bash]
-.Build and run the application, then invoke the application metrics endpoint:
+.Build and run the application, then invoke the application configuration endpoint:
 ----
-curl -H "Accept: application/json"  http://localhost:8080/metrics/application
+curl -H "Accept: application/json"  http://localhost:8080/configuration/application
 ----
 
 [source,json]
-.JSON response from `/metrics/application`:
+.JSON response from `/configuration/application`:
 ----
 {
   "cardCount": 0,
-  "io.helidon.examples.quickstart.mp.GreetingCardsAppMetrics.appUpTimeSeconds": 6 // <1>
+  "io.helidon.examples.quickstart.mp.GreetingCardsAppConfiguration.appUpTimeSeconds": 6 // <1>
 }
 ----
 <1> The application has been running for 6 seconds.
@@ -750,24 +751,24 @@ The following example shows how to integrate the Helidon MP application with Kub
 [source,bash]
 .Stop the application and build the docker image:
 ----
-docker build -t helidon-metrics-mp .
+docker build -t helidon-configuration-mp .
 ----
 
 [source,yaml]
-.Create the Kubernetes YAML specification, named metrics.yaml, with the following content:
+.Create the Kubernetes YAML specification, named configuration.yaml, with the following content:
 ----
 kind: Service
 apiVersion: v1
 metadata:
-  name: helidon-metrics // <1>
+  name: helidon-configuration // <1>
   labels:
-    app: helidon-metrics
+    app: helidon-configuration
   annotations:
     prometheus.io/scrape: 'true' // <2>
 spec:
   type: NodePort
   selector:
-    app: helidon-metrics
+    app: helidon-configuration
   ports:
     - port: 8080
       targetPort: 8080
@@ -776,18 +777,18 @@ spec:
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
-  name: helidon-metrics
+  name: helidon-configuration
 spec:
   replicas: 1 // <3>
   template:
     metadata:
       labels:
-        app: helidon-metrics
+        app: helidon-configuration
         version: v1
     spec:
       containers:
-        - name: helidon-metrics
-          image: helidon-metrics-mp
+        - name: helidon-configuration
+          image: helidon-configuration-mp
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -800,40 +801,40 @@ spec:
 [source,bash]
 .Create and deploy the application into Kubernetes:
 ----
-kubectl apply -f ./metrics.yaml
+kubectl apply -f ./configuration.yaml
 ----
 
 [source,bash]
 .Get the service information:
 ----
-kubectl get service/helidon-metrics
+kubectl get service/helidon-configuration
 ----
 
 [source,bash]
 ----
 NAME             TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
-helidon-metrics   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // <1>
+helidon-configuration   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // <1>
 ----
 <1> A service of type `NodePort` that serves the default routes on port `31143`.
 
 [source,bash]
-.Verify the metrics endpoint using port `30116`, your port will likely be different:
+.Verify the configuration endpoint using port `30116`, your port will likely be different:
 ----
-curl http://localhost:31143/metrics
+curl http://localhost:31143/configuration
 ----
 
 NOTE: Leave the application running in Kubernetes since it will be used for Prometheus integration.
 
 ==== Prometheus integration
 
-The metrics service that you just deployed into Kubernetes is already annotated with `prometheus.io/scrape:`.  This will allow
-Prometheus to discover the service and scrape the metrics.  In this exercise, you will install Prometheus
-into Kubernetes, then verify that it discovered the Helidon metrics in your application.
+The configuration service that you just deployed into Kubernetes is already annotated with `prometheus.io/scrape:`.  This will allow
+Prometheus to discover the service and scrape the configuration.  In this exercise, you will install Prometheus
+into Kubernetes, then verify that it discovered the Helidon configuration in your application.
 
 [source,bash]
 .Install Prometheus and wait until the pod is ready:
 ----
-helm install stable/prometheus --name metrics
+helm install stable/prometheus --name configuration
 export POD_NAME=$(kubectl get pods --namespace default -l "app=prometheus,component=server" -o jsonpath="{.items[0].metadata.name}")
 kubectl get pod $POD_NAME
 ----
@@ -842,7 +843,7 @@ You will see output similar to the following.  Repeat the `kubectl get pod` comm
 
 [source,bash]
 ----
-metrics-prometheus-server-5fc5dc86cb-79lk4   2/2     Running   0          46s
+configuration-prometheus-server-5fc5dc86cb-79lk4   2/2     Running   0          46s
 ----
 
 [source,bash]
@@ -861,27 +862,28 @@ You can now delete the Kubernetes resources that were just created during this e
 [source,bash]
 .Delete the Prometheus Kubernetes resources:
 ----
-helm delete --purge metrics
+helm delete --purge configuration
 ----
 
 [source,bash]
 .Delete the application Kubernetes resources:
 ----
-kubectl delete -f ./metrics.yaml
+kubectl delete -f ./configuration.yaml
 ----
 
 === Summary
 
-This guide demonstrated how to use metrics in a Helidon MP application using various combinations of
-metrics and scopes.
+This guide demonstrated how to use configuration in a Helidon MP application using various combinations of
+configuration and scopes.
 
-* Access metrics for all three scopes: base, vendor, and application
-* Configure application metrics at the class, method, and field-level
-* Integrate Helidon metrics with Kubernetes and Prometheus
+* Access configuration for all three scopes: base, vendor, and application
+* Configure application configuration at the class, method, and field-level
+* Integrate Helidon configuration with Kubernetes and Prometheus
 
 Refer to the following references for additional information:
 
-* MicroProfile Metrics specification at https://github.com/eclipse/microprofile-metrics/releases/tag/1.1
-* MicroProfile Metrics Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.metrics/microprofile-metrics-api/1.1.1
+* <<about/01_introduction.adoc,Helidon Configuration>>
+* MicroProfile Configuration specification at https://github.com/eclipse/microprofile-configuration/releases/tag/1.1
+* MicroProfile Configuration Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.configuration/microprofile-configuration-api/1.1.1
 * Helidon Javadoc at https://helidon.io/docs/latest/apidocs/index.html?overview-summary.html
 
