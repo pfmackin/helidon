@@ -49,18 +49,20 @@ mvn archetype:generate -DinteractiveMode=false \
 
 === Configuration sources
 
-You can configure Helidon to read configuration data from a variety of sources, in several formats.
-By default, Helidon will load  the configuration specified in `META-INF\microprofile-config.properties`,
-which defines properties using Java Property format (name/value), for example, `server.port=8080`.
+You can configure Helidon to read configuration data from a variety of sources, and in several formats.  Helidon
+will parse and merge all sources into an in-memory tree which represents the configuration’s structure and values.
+By default, Helidon will load the configuration specified in `META-INF/microprofile-config.properties`,
+which defines properties using Java Property format (name/value pair).  If `META-INF/microprofile-config.properties`
+is missing then Helidon will use a set of default configuration values.
 
-1. `/configuration/base` - Base configuration data as specified by the MicroProfile Configuration specification.
-2. `/configuration/vendor` - Helidon-specific configuration data.
-3. `/configuration/application` - Application-specific configuration data.
+=== Classpath sources
 
-NOTE: The `/configuration` endpoint will return data for all scopes.
+The following example demonstrates how to add a second internal configuration resource that is discovered in the `classpath`.
+The code needs to build a `Config` object, which in turn is used to build the `Server` object.  The `Config` object is built using a `Config.Builder`,
+which lets you inject any number of sources into the builder.  Furthermore, you can set precedence for the sources.
+The first source has highest precedence, then the next has second highest, and so forth.  This is true for all sources, regardless of the type.
 
-The following example will demonstrate how to use the built-in configuration.  All examples are executed
-from the root directory of your project (helidon-quickstart-mp).
+Let's verify the default behavior of the project that you generated:
 
 [source,bash]
 .Build the application, skipping unit tests, then run it:
@@ -69,682 +71,142 @@ mvn package -DskipTests=true
 java -jar target/helidon-quickstart-mp.jar
 ----
 
-NOTE: Configuration can be returned in either text format (the default), or JSON.  The text format uses Prometheus Text Format,
-see https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details.
-
 [source,bash]
 .Verify the configuration endpoint in a new terminal window:
 ----
-curl http://localhost:8080/configuration
+curl http://localhost:8080/greet
 ----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "Hello World!"
+}
+----
+
+Add a second resource file, named `config.properties` to the `resources` folder with the following content:
 
 [source,text]
-.Text response:
+.`resources/config.properties`
 ----
-# TYPE base:classloader_current_loaded_class_count counter
-# HELP base:classloader_current_loaded_class_count Displays the number of classes that are currently loaded in the Java virtual machine.
-base:classloader_current_loaded_class_count 7511
-# TYPE base:classloader_total_loaded_class_count counter
-# HELP base:classloader_total_loaded_class_count Displays the total number of classes that have been loaded since the Java virtual machine has started execution.
-base:classloader_total_loaded_class_count 7512
+app.greeting=Hi
+----
+
+[source,java]
+.Update the `Main` class; 1) Add imports, 2) replace the `startServer` method, 3) add the `buildConfig` method:
+----
+import io.helidon.config.Config;
+import static io.helidon.config.ConfigSources.classpath;
 ...
-----
 
-You can get the same data in JSON format.
-
-[source,bash]
-.Verify the configuration endpoint with an HTTP accept header:
-----
-curl -H "Accept: application/json"  http://localhost:8080/configuration
-----
-
-[source,json]
-.JSON response:
-----
-{
-  "base": {
-    "classloader.currentLoadedClass.count": 7534,
-    "classloader.totalLoadedClass.count": 7538,
-    "classloader.totalUnloadedClass.count": 1,
-    "cpu.availableProcessors": 4,
-    "cpu.systemLoadAverage": 2.83349609375,
-    "gc.PS MarkSweep.count": 2,
-    "gc.PS MarkSweep.time": 77,
-    "gc.PS Scavenge.count": 5,
-    "gc.PS Scavenge.time": 37,
-    "jvm.uptime": 727588,
-    "memory.committedHeap": 284164096,
-    "memory.maxHeap": 3817865216,
-    "memory.usedHeap": 53283088,
-    "thread.count": 44,
-    "thread.daemon.count": 35,
-    "thread.max.count": 44
-  },
-  "vendor": {
-    "grpc.requests.count": 0,
-    "grpc.requests.meter": {
-      "count": 0,
-      "meanRate": 0.0,
-      "oneMinRate": 0.0,
-      "fiveMinRate": 0.0,
-      "fifteenMinRate": 0.0
-    },
-    "requests.count": 6,
-    "requests.meter": {
-      "count": 6,
-      "meanRate": 0.008275992296704147,
-      "oneMinRate": 0.01576418632772332,
-      "fiveMinRate": 0.006695060022357365,
-      "fifteenMinRate": 0.0036382699664488415
+    static Server startServer() {
+        return Server.builder()
+                .config(buildConfig()) // <1>
+                .build()
+                .start();
     }
-  }
-}
-----
 
-You can get a single configuration by specifying the name in the URL path.
-
-[source,bash]
-.Get the Helidon `grpc.requests.meter` configuration:
-----
-curl -H "Accept: application/json"  http://localhost:8080/configuration/vendor/grpc.requests.meter
-----
-
-[source,json]
-.JSON response:
-----
-{
-  "grpc.requests.meter": {
-    "count": 0,
-    "meanRate": 0.0,
-    "oneMinRate": 0.0,
-    "fiveMinRate": 0.0,
-    "fifteenMinRate": 0.0
-  }
-}
-----
-
-NOTE: You cannot get the individual fields of a configuration. For example, you cannot target http://localhost:8080/configuration/vendor/grpc.requests.meter.count.
-
-=== Configuration metadata
-
-Each configuration has associated metadata that describes:
-
-1. name: The name of the configuration.
-2. units: The unit of the configuration such as time (seconds, millisecond), size (bytes, megabytes), etc.
-3. type: The type of configuration: `Counter`, `Timer`, `Meter`, `Histogram`, or `Gauge`.
-
-You can get the metadata for any scope, such as `/configuration/base`, as shown below:
-
-[source,bash]
-.Get the configuration metadata using HTTP OPTIONS method:
-----
- curl -X OPTIONS -H "Accept: application/json"  http://localhost:8080/configuration/base
-----
-
-[source,json]
-.JSON response (truncated):
-----
-{
-  "classloader.currentLoadedClass.count": {
-    "unit": "none",
-    "type": "counter",
-    "description": "Displays the number of classes that are currently loaded in the Java virtual machine.",
-    "displayName": "Current Loaded Class Count"
-  },
-...
-  "jvm.uptime": {
-    "unit": "milliseconds",
-    "type": "gauge",
-    "description": "Displays the start time of the Java virtual machine in milliseconds. This attribute displays the approximate time when the Java virtual machine started.",
-    "displayName": "JVM Uptime"
-  },
-...
-  "memory.usedHeap": {
-    "unit": "bytes",
-    "type": "gauge",
-    "description": "Displays the amount of used heap memory in bytes.",
-    "displayName": "Used Heap Memory"
-  }
-}
-----
-
-
-=== Application-specific configuration data
-
-You can create application-specific configuration and integrate them with Helidon using CDI.
-To add a new configuration, simply annotate the JAX-RS resource with one of the configuration annotations. Configuration can
-be injected at the class, method, and field-levels.  This document shows examples of all three.
-
-Helidon will automatically create and register annotated application configuration and store them in the application `MetricRegistry`, which
-also contains the configuration metadata. The configuration will exist for the lifetime of the application.
-Each configuration annotation has mandatory and optional fields. The name field, for example, is optional.
-
-==== Method level configuration
-
-There are three configuration that you can use by annotating a method:
-
-1. `@Counted` - Register a `Counter` configuration
-2. `@Timed` - Register a `Timer` configuration
-3. `@Metered` - Register a `Meter` configuration
-
-The following example will demonstrate how to use the `@Counted` annotation to track the number of times
-the `/cards` endpoint is called.
-
-[source,java]
-.Create a new class `GreetingCards` with the following code:
-----
-package io.helidon.examples.quickstart.mp;
-
-import java.util.Collections;
-import javax.enterprise.context.RequestScoped;
-import javax.json.Json;
-import javax.json.JsonBuilderFactory;
-import javax.json.JsonObject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.configuration.annotation.Counted;
-
-@Path("/cards") //<1>
-@RequestScoped // <2>
-public class GreetingCards {
-
-  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
-
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "any-card", monotonic = true)  // <3>
-  public JsonObject anyCard() throws InterruptedException {
-    return createResponse("Here are some random cards ...");
-  }
-
-  private JsonObject createResponse(String msg) {
-    return JSON.createObjectBuilder().add("message", msg).build();
-  }
-}
-----
-<1> This class is annotated with `Path` which sets the path for this resource
-as `/cards`.
-<2> The `@RequestScoped` annotation defines that this bean is
-request scoped.  The request scope is active only for the duration of
-one web service invocation and it is destroyed at the end of that
-invocation.
-<3> The annotation `@Counted` will register a `Counter` configuration for this method, creating it if needed.
-The counter is incremented each time the anyCards method is called.  The `name` attribute is optional.
-
-NOTE: You must set `monotonic` field to `true` to force the count to increment when entering the method.
-The default behavior is to decrement when exiting the method.
-
-
-[source,java]
-.Update the `GreetApplication` class as follows:
-----
-@Override
-public Set<Class<?>> getClasses() {
-    return CollectionsHelper.setOf(GreetResource.class, GreetingCards.class); // <1>
-}
-----
-<1> Add the `GreetingCards` class to the set of classes managed by Helidon for this application.
-
-
-[source,bash]
-.Build and run the application, then invoke the application endpoints below:
-----
-curl http://localhost:8080/cards
-curl http://localhost:8080/cards
-curl -H "Accept: application/json"  http://localhost:8080/configuration/application
-----
-
-[source,json]
-.JSON response:
-----
-{
-  "io.helidon.examples.quickstart.mp.GreetingCards.any-card":2 // <1>
-}
-----
-<1> The any-card count is two, since you invoked the endpoint twice.
-
-NOTE: Notice the counter is fully qualified.  You can remove the package prefix by using the `absolute=true` field in the `@Counted` annotation.
-You must use  `absolute=false` for class-level annotations.
-
-==== Additional method-level configuration
-
-The `@Timed` and `@Metered` annotations can also be used with a method.  For the following example. you can just annotate the same method with these configuration.
-When using multiple annoations on a method, you *must* give the configuration different names as shown below.
-
-[source,java]
-.Update the `GreetingCards` class with the following code:
-----
-package io.helidon.examples.quickstart.mp;
-
-import java.util.Collections;
-import javax.enterprise.context.RequestScoped;
-import javax.json.Json;
-import javax.json.JsonBuilderFactory;
-import javax.json.JsonObject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.configuration.MetricUnits;
-import org.eclipse.microprofile.configuration.annotation.Counted;
-import org.eclipse.microprofile.configuration.annotation.Metered;
-import org.eclipse.microprofile.configuration.annotation.Timed;
-
-@Path("/cards")
-@RequestScoped
-public class GreetingCards {
-
-  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
-
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "cardCount", absolute = true, monotonic = true) //<1>
-  @Metered(name = "cardMeter", absolute = true, unit = MetricUnits.MILLISECONDS) //<2>
-  @Timed(name = "cardTimer", absolute = true, unit = MetricUnits.MILLISECONDS) //<3>
-  public JsonObject anyCard() throws InterruptedException {
-    return createResponse("Here are some random cards ...");
-  }
-
-  private JsonObject createResponse(String msg) {
-    return JSON.createObjectBuilder().add("message", msg).build();
-  }
-}
-
-----
-<1> Specify a custom name for the `Counter` configuration and set `absolute=true` to remove the path prefix from the name.
-<2> Add the `@Metered` annotation to get a `Meter` configuration.
-<3> Add the `@Timed` annotation to get a `Timer` configuration.
-
-[source,bash]
-.Build and run the application, then invoke the application endpoints below:
-----
-curl http://localhost:8080/cards
-curl http://localhost:8080/cards
-curl -H "Accept: application/json"  http://localhost:8080/configuration/application
-----
-
-
-[source,json]
-.JSON response:
-----
-{
-  "cardCount": 2,
-  "cardMeter": {  // <1>
-    "count": 2,
-    "meanRate": 0.3664337145491488,
-    "oneMinRate": 0.4,
-    "fiveMinRate": 0.4,
-    "fifteenMinRate": 0.4
-  },
-  "cardTimer": { // <2>
-    "count": 2,
-    "meanRate": 0.36649792432150535,
-    "oneMinRate": 0.4,
-    "fiveMinRate": 0.4,
-    "fifteenMinRate": 0.4,
-    "min": 12944,
-    "max": 2078856,
-    "mean": 1045900.0,
-    "stddev": 1032956.0,
-    "p50": 2078856.0,
-    "p75": 2078856.0,
-    "p95": 2078856.0,
-    "p98": 2078856.0,
-    "p99": 2078856.0,
-    "p999": 2078856.0
-  }
-}
-----
-<1> The `Meter` configuration includes the count field (it is a superset of `Counter`).
-<2> The `Timer` configuration includes the `Meter` fields (it is a superset of `Meter`).
-
-
-==== Reusing configuration
-
-You can share a configuration across multiple endpoints by specifying the reusable field in the configuration annotation as
-demonstrated below.
-
-[source,java]
-.Update the `GreetingCards` class with the following code:
-----
-package io.helidon.examples.quickstart.mp;
-
-import java.util.Collections;
-import javax.enterprise.context.RequestScoped;
-import javax.json.Json;
-import javax.json.JsonBuilderFactory;
-import javax.json.JsonObject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.configuration.annotation.Counted;
-
-@Path("/cards")
-@RequestScoped
-public class GreetingCards {
-
-  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
-
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "anyCard",absolute = true, monotonic = true)
-  public JsonObject anyCard() throws InterruptedException {
-    return createResponse("Here are some cards ...");
-  }
-
-  @GET
-  @Path("/birthday")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "specialEventCard", absolute = true, monotonic = true, reusable = true)  // <1>
-  public JsonObject birthdayCard() throws InterruptedException {
-    return createResponse("Here are some birthday cards ...");
-  }
-
-  @GET
-  @Path("/wedding")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "specialEventCard", absolute = true, monotonic = true, reusable = true)  // <2>
-  public JsonObject weddingCard() throws InterruptedException {
-    return createResponse("Here are some wedding cards ...");
-  }
-
-  private JsonObject createResponse(String msg) {
-    return JSON.createObjectBuilder().add("message", msg).build();
-  }
-}
-----
-<1>  The `/birthday` endpoint uses a `Counter` configuration, named `specialEventCard`.
-<2>  The `/wedding` endpoint uses the same `Counter` configuration, named `specialEventCard`.
-
-
-[source,bash]
-.Build and run the application, then invoke the following endpoints:
-----
-curl  http://localhost:8080/cards/wedding
-curl  http://localhost:8080/cards/birthday
-curl  http://localhost:8080/cards
-curl -H "Accept: application/json"  http://localhost:8080/configuration/application
-----
-
-[source,json]
-.JSON response from `/configuration/application`:
-----
-{
-"anyCard": 1,
-"specialEventCard": 2  // <1>
-}
-----
-<1> Notice that `specialEventCard` count is two, since you accessed `/cards/wedding` and `/cards/birthday`.
-
-
-==== Class-level configuration
-
-You can collect configuration at the class-level to aggregate data from all methods in that class using the same configuration.
-The following example introduces a configuration to count all card queries.  In the following example, the method-level configuration are not
-needed to aggregate the counts, but they are left in the example to demonstrate the combined output of all three configuration.
-
-[source,java]
-.Update the `GreetingCards` class with the following code:
-----
-package io.helidon.examples.quickstart.mp;
-
-import java.util.Collections;
-import javax.enterprise.context.RequestScoped;
-import javax.json.Json;
-import javax.json.JsonBuilderFactory;
-import javax.json.JsonObject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.configuration.annotation.Counted;
-
-@Path("/cards")
-@RequestScoped
-@Counted(name = "totalCards", monotonic = true) // <1>
-public class GreetingCards {
-
-  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
-
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(monotonic = true, absolute = true) // <2>
-  public JsonObject anyCard() throws InterruptedException {
-    return createResponse("Here are some random cards ...");
-  }
-
-  @Path("/birthday")
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(monotonic = true, absolute = true) // <3>
-  public JsonObject birthdayCard() throws InterruptedException {
-    return createResponse("Here are some birthday cards ...");
-  }
-
-  private JsonObject createResponse(String msg) {
-    return JSON.createObjectBuilder().add("message", msg).build();
-  }
-}
-----
-<1> This class is annotated with `@Counted`, which aggregates count data from all the method that have a `Count` annotation.
-<2> Use `absolute=true` to remove path prefix for method-level annotations.
-<3> Add a method with a `Counter` configuration to get birthday cards.
-
-[source,bash]
-.Build and run the application, then invoke the following endpoints:
-----
-curl http://localhost:8080/cards
-curl http://localhost:8080/cards/birthday
-curl -H "Accept: application/json"  http://localhost:8080/configuration/application
-----
-
-[source,json]
-.JSON response from `/configuration/application`:
-----
-{
-  "anyCard": 1,
-  "birthdayCard": 1,
-  "io.helidon.examples.quickstart.mp.totalCards.GreetingCards": 2  // <1>
-}
-----
-<1> The `totalCards` count is a total of all the method-level `Counter` configuration.  Class level configuration names are always
-fully qualified.
-
-
-==== Field-level configuration
-
-Field level configuration can be injected into managed objects, but they need to be updated by the application code.
-This annotation can be used on fields of type `Meter`, `Timer`, `Counter`, and `Histogram`.
-
-The following example shows how to use a field-level `Counter` configuration to track cache hits.
-
-[source,java]
-.Update the `GreetingCards` class with the following code:
-----
-package io.helidon.examples.quickstart.mp;
-
-import java.util.Collections;
-import java.util.Random;
-import javax.enterprise.context.RequestScoped;
-import javax.inject.Inject;
-import javax.json.Json;
-import javax.json.JsonBuilderFactory;
-import javax.json.JsonObject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.configuration.Counter;
-import org.eclipse.microprofile.configuration.annotation.Counted;
-import org.eclipse.microprofile.configuration.annotation.Metric;
-
-@Path("/cards")
-@RequestScoped
-@Counted(name = "totalCards", monotonic = true)
-public class GreetingCards {
-
-  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
-
-  @Inject
-  @Metric(name = "cacheHits", absolute = true) // <1>
-  private Counter cacheHits;
-
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(monotonic = true, absolute = true)
-  public JsonObject anyCard() throws InterruptedException {
-    updateStats(); // <2>
-    return createResponse("Here are some random cards ...");
-  }
-
-  @Path("/birthday")
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(monotonic = true, absolute = true)
-  public JsonObject birthdayCard() throws InterruptedException {
-    updateStats();  // <3>
-    return createResponse("Here are some birthday cards ...");
-  }
-
-  private JsonObject createResponse(String msg) {
-    return JSON.createObjectBuilder().add("message", msg).build();
-  }
-
-  private void updateStats() {
-    if (new Random().nextInt(3) == 1) {
-      cacheHits.inc(); // <4>
+    private static Config buildConfig() {
+        return Config.builder()
+            .sources(
+                classpath("config.properties"), // <2>
+                classpath("META-INF/microprofile-config.properties")) // <3>
+            .build();
     }
-  }
-}
+
 ----
-<1> A `Counter` configuration field, `cacheHits`, is automatically injected by Helidon.
-<2> Call `updateStats()` to update the cache hits.
-<3> Call `updateStats()` to update the cache hits.
-<4> Randomly increment the `cacheHits` counter.
+<1> Inject the custom `Config` object into the `Server.Builder`.
+<2> Specify the new config.properties resource that is in the `classpath`.  It has the highest precedence of any source.
+<3> Specify the existing `META-INF/microprofile-config.properties` that is also in the `classpath` (see note below).
+
+NOTE: When you use a custom `Config` object, you are responsible for specifying all resources,
+even the default `META-INF/microprofile-config.properties` resource.
+
 
 [source,bash]
-.Build and run the application, then invoke the following endpoints:
+.Build and run the application, then invoke the endpoint below:
 ----
-curl http://localhost:8080/cards
-curl http://localhost:8080/cards
-curl http://localhost:8080/cards/birthday
-curl http://localhost:8080/cards/birthday
-curl http://localhost:8080/cards/birthday
-curl -H "Accept: application/json"  http://localhost:8080/configuration/application
+curl http://localhost:8080/greet
 ----
 
 [source,json]
-.JSON response from `/configuration/application`:
+.JSON response:
 ----
 {
-  "anyCard": 2,
-  "birthdayCard": 3,
-  "cacheHits": 2, // <1>
-  "io.helidon.examples.quickstart.mp.totalCards.GreetingCards": 5
+  "message": "Hi World!" // <1>
 }
 ----
-<1> The cache was hit two times out of five queries.
+<1> The greeting was picked up from `config.properties`, overriding the value in `META-INF/microprofile-config.properties`.
 
-==== Gauge configuration
+NOTE: It is important to remember that configuration from all sources get merged internally.  If you have the same
+ configuration property in multiple sources then only the one with highest precedence will be used at runtime.
+This is true even the same property comes from sources with different formats.
 
-The configuration you have tested so far are updated in response to an application REST request, i.e GET `/cards`.  These
-configuration can be declared in a request scoped class and Helidon will store the configuration in the `MetricRegistry`, so the value persists
-across requests. When GET `/configuration/application` is invoked, Helidon will return the current value of the configuration stored in the `MetricRegistry`.
-The `Gauge` configuration is different from all the other configuration. The application must provide a getter to return the gauge value in an
-application scoped class. When GET `/configuration/application` is invoked, Helidon will call the `Gauge` getter, store that value
-in the `ConfigurationRegistry`, and return it as part of the configuration response payload.  So, the `Gauge` configuration value is updated real-time, in response to the
-get configuration request.
+=== External file sources
 
-The following example demonstrates how to use a `Gauge` to track application up-time.
+You can use an external file as a configuration source and mark it as optional.  By default, any specified external source is mandatory
+and it if is missing, Helidon will not start.  The following example will demonstrate this.
 
 [source,java]
-.Create a new `GreetingCardsAppConfiguration` class with the following code:
+.Replace the `Main.buildConfig` method with the following:
 ----
-package io.helidon.examples.quickstart.mp;
-
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicLong;
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.context.Initialized;
-import javax.enterprise.event.Observes;
-import org.eclipse.microprofile.configuration.annotation.Gauge;
-
-@ApplicationScoped // <1>
-public class GreetingCardsAppConfiguration {
-
-  private AtomicLong startTime = new AtomicLong(0); // <2>
-
-  public void onStartUp(@Observes @Initialized(ApplicationScoped.class) Object init) {
-    startTime = new AtomicLong(System.currentTimeMillis()); // <3>
-  }
-
-  @Gauge(unit = "TimeSeconds")
-  public long appUpTimeSeconds() {
-    return Duration.ofMillis(System.currentTimeMillis() - startTime.get()).getSeconds();  // <4>
-  }
-}
+    private static Config buildConfig() {
+        return Config.builder()
+            .sources(
+                file("missing"),  // <1>
+                classpath("config.properties"),
+                classpath("META-INF/microprofile-config.properties"))
+            .build();
+    }
 ----
-<1> This managed object must be application scoped to properly register and use the `Gauge` configuration.
-<2> Declare an `AtomicLong` field to hold the start time of the application.
-<3> Initialize the application start time.
-<4> Return the application `appUpTimeSeconds` configuration, which will be included in the application configuration.
+<1> Specifiy a file configuration source that doesn't exist.
 
-
-[source,java]
-.Update the `GreetingCards` class with the following code to simplify the configuration output:
-----
-package io.helidon.examples.quickstart.mp;
-
-import java.util.Collections;
-import javax.enterprise.context.RequestScoped;
-import javax.json.Json;
-import javax.json.JsonBuilderFactory;
-import javax.json.JsonObject;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.eclipse.microprofile.configuration.annotation.Counted;
-
-@Path("/cards")
-@RequestScoped
-public class GreetingCards {
-
-  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
-
-  @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "cardCount", absolute = true, monotonic = true)
-  public JsonObject anyCard() throws InterruptedException {
-    return createResponse("Here are some random cards ...");
-  }
-
-  private JsonObject createResponse(String msg) {
-    return JSON.createObjectBuilder().add("message", msg).build();
-  }
-}
-----
 
 [source,bash]
-.Build and run the application, then invoke the application configuration endpoint:
+.Build and run the application.  You should see the following exception:
 ----
-curl -H "Accept: application/json"  http://localhost:8080/configuration/application
+Exception in thread "main" io.helidon.config.ConfigException: Cannot load data from mandatory source FileConfig[missing]. File 'missing' not found.
+----
+
+This can be fixed by making the file optional.
+
+[source,java]
+.Replace the `Main.buildConfig` method with the following:
+----
+    private static Config buildConfig() {
+        return Config.builder()
+            .sources(
+                file("missing").optional(), // <1>
+                classpath("config.properties"),
+                classpath("META-INF/microprofile-config.properties"))
+            .build();
+    }
+----
+<1> This file is now optional.
+
+[source,bash]
+.Build and run the application, then invoke the endpoint below:
+----
+curl http://localhost:8080/greet
 ----
 
 [source,json]
-.JSON response from `/configuration/application`:
+.JSON response:
 ----
 {
-  "cardCount": 0,
-  "io.helidon.examples.quickstart.mp.GreetingCardsAppConfiguration.appUpTimeSeconds": 6 // <1>
+  "message": "Hi World!" // <1>
 }
 ----
-<1> The application has been running for 6 seconds.
+<1> The greeting was picked up from `config.properties` since the source file `missing` was not found.
 
-=== Integration with Kubernetes and Prometheus
+=== Configuration Formats
+
+
+=== Accessing Configuration within an application
+
+
+=== Integration with Kubernetes
 
 The following example shows how to integrate the Helidon MP application with Kubernetes.
 
@@ -755,7 +217,7 @@ docker build -t helidon-configuration-mp .
 ----
 
 [source,yaml]
-.Create the Kubernetes YAML specification, named configuration.yaml, with the following content:
+.Create the Kubernetes YAML specification, named `config.yaml`, with the following content:
 ----
 kind: Service
 apiVersion: v1
@@ -801,7 +263,7 @@ spec:
 [source,bash]
 .Create and deploy the application into Kubernetes:
 ----
-kubectl apply -f ./configuration.yaml
+kubectl apply -f ./config.yaml
 ----
 
 [source,bash]
@@ -823,67 +285,23 @@ helidon-configuration   NodePort   10.99.159.2   <none>        8080:31143/TCP   
 curl http://localhost:31143/configuration
 ----
 
-NOTE: Leave the application running in Kubernetes since it will be used for Prometheus integration.
-
-==== Prometheus integration
-
-The configuration service that you just deployed into Kubernetes is already annotated with `prometheus.io/scrape:`.  This will allow
-Prometheus to discover the service and scrape the configuration.  In this exercise, you will install Prometheus
-into Kubernetes, then verify that it discovered the Helidon configuration in your application.
-
-[source,bash]
-.Install Prometheus and wait until the pod is ready:
-----
-helm install stable/prometheus --name configuration
-export POD_NAME=$(kubectl get pods --namespace default -l "app=prometheus,component=server" -o jsonpath="{.items[0].metadata.name}")
-kubectl get pod $POD_NAME
-----
-
-You will see output similar to the following.  Repeat the `kubectl get pod` command until you see `2/2` and `Running`. This may take up to one minute.
-
-[source,bash]
-----
-configuration-prometheus-server-5fc5dc86cb-79lk4   2/2     Running   0          46s
-----
-
-[source,bash]
-.Create a port-forward so you can access the server URL:
-----
-kubectl --namespace default port-forward $POD_NAME 7090:9090
-----
-
-Now open your browser and navigate to `http://localhost:7090/targets`.  Search for helidon on the page and you will see your
-Helidon application as one of the Prometheus targets.
-
-==== Final cleanup
-
 You can now delete the Kubernetes resources that were just created during this example.
-
-[source,bash]
-.Delete the Prometheus Kubernetes resources:
-----
-helm delete --purge configuration
-----
 
 [source,bash]
 .Delete the application Kubernetes resources:
 ----
-kubectl delete -f ./configuration.yaml
+kubectl delete -f ./config.yaml
 ----
 
 === Summary
 
 This guide demonstrated how to use configuration in a Helidon MP application using various combinations of
-configuration and scopes.
+sources and formats:
 
-* Access configuration for all three scopes: base, vendor, and application
-* Configure application configuration at the class, method, and field-level
-* Integrate Helidon configuration with Kubernetes and Prometheus
+* A
 
 Refer to the following references for additional information:
 
 * <<about/01_introduction.adoc,Helidon Configuration>>
-* MicroProfile Configuration specification at https://github.com/eclipse/microprofile-configuration/releases/tag/1.1
-* MicroProfile Configuration Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.configuration/microprofile-configuration-api/1.1.1
 * Helidon Javadoc at https://helidon.io/docs/latest/apidocs/index.html?overview-summary.html
 
