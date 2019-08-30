@@ -235,6 +235,15 @@ This is true even the same property comes from sources with different formats.
 
 === External file sources
 
+=== URL sources
+
+
+==== Meta-configuration
+
+, you can  prepare meta-configuration in a file that declares the sources to load and their attributes.
+
+You can either specify the meta-config file in your application or allow the config system to search for and load meta-config from a preset list of possible sources.
+
 You can use an external file as a configuration source and mark it as optional.  By default, any specified external source is mandatory,
 if it is missing, your application will not start.  The following example will demonstrate this.
 
