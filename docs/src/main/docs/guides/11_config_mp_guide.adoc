@@ -46,8 +46,7 @@ mvn archetype:generate -DinteractiveMode=false \
     -DgroupId=io.helidon.examples \
     -DartifactId=helidon-quickstart-mp \
     -Dpackage=io.helidon.examples.quickstart.mp
-----export APP_GREETING=HelloFromEnvironment
-
+----
 
 == Getting started with configuration
 
@@ -313,7 +312,9 @@ curl http://localhost:8080/greet
 ----
 <1> The file `META-INF/microprofile-config.properties` was used to get the greeting since it now has precedence over `config.properties`.
 
-Notice that the code has not specified system properties as a source, so you cannot override the greeting from the command line.
+=== System Property source
+
+Since the code has not specified system properties as a source, so you cannot override the greeting from the command line as shown below.
 
 [source,bash]
 .Run the application with the system property.
@@ -336,7 +337,8 @@ curl http://localhost:8080/greet
 ----
 <1> The greeting was picked up from `META-INF/microprofile-config.properties`, not from  `-Dapp.greeting="HelloFromSystemProperty"`.
 
-Now lets add the code to use system properties as a source and try again.
+
+Add the code to use system properties as a source and try again.
 
 [source,java]
 .Update the `Main` class and replace the `startServer` method:
@@ -357,7 +359,7 @@ Now lets add the code to use system properties as a source and try again.
 <1> Add system properties as the source with the highest precedence.
 
 [source,bash]
-.Build then start the application with the system property:
+.Build then run the application with the system property:
 ----
 mvn package -DskipTests=true
 java -Dapp.greeting="HelloFromSystemProperty"  -jar target/helidon-quickstart-mp.jar
@@ -377,6 +379,8 @@ curl http://localhost:8080/greet
 }
 ----
 <1> The system property now takes precedence.
+
+=== Environment Variable source
 
 You can replace `systemProperties()` with `environmentVariables()` and do the same test:
 
@@ -423,6 +427,7 @@ curl http://localhost:8080/greet
 
 This ends the section on using a custom configuration consisting of system properties, environment variables, and classpath resources.
 At this point, you know to use the `Config.Builder` to set up custom configuration with multiple sources, specifying the precedence.
+In the next section, you will use other source types and formats.
 
 === External file sources
 
