@@ -19,9 +19,10 @@
 = Configuration MP Guide
 :description: Helidon configuration
 :keywords: helidon, configuration, microprofile, guide
+:toc:
 
 This guide describes how to create a sample MicroProfile (MP) project
-that can be used to run some basic examples using both built-in and custom configuration with Helidon MP.
+that can be used to run some basic examples using both default and custom configuration with Helidon MP.
 
 == What you need
 
@@ -45,56 +46,49 @@ mvn archetype:generate -DinteractiveMode=false \
     -DgroupId=io.helidon.examples \
     -DartifactId=helidon-quickstart-mp \
     -Dpackage=io.helidon.examples.quickstart.mp
-----
+----export APP_GREETING=HelloFromEnvironment
 
-=== Getting started with configuration
 
-Helidon configuration is very flexible and comprehensive, providing you many choices on how to configure
-your application.  You can configure your application from a variety of sources,
-and in several formats.  This guide will explain the various aspects of configuration in detail.
+== Getting started with configuration
 
-Helidon uses the default configuration when you start the server without specifying a custom configuration
-as you can see here.
+Helidon configuration is very flexible and comprehensive, providing you with many choices on how to configure
+your application.  You can configure your application from a variety of sources
+using several formats.  Furthermore, you can customize the precedence of sources and make them
+optional or mandatory. This guide will explain the various aspects of configuration using examples.
+
+=== Configuration Formats
+
+Helidon configuration sources can use different formats for the configuration data. The supported formats are:
+
+* Java Property (name/value)
+* JSON
+* YAML
+* HOCON
+
+You can specify the format on a per-source bases, mixing and matching formats as required.  The remainder of this
+document will use these formats in examples and show you how to configure Helidon to parse them.
+
+=== Default configuration
+
+Helidon has an internal configuration, so you are not required to provide any configure data for your application,
+though in practice you most likely would.  By default, that configuration can be overriden from three sources:
+system properties, environment variables, and  the contents of `META-INF/microprofile-config.properties`.
+So, for example, if you specify a custom server port in`META-INF/microprofile-config.properties`
+then your application will listen on that port.
+
+In your application code, when you create a `Server` object without a custom `Config` object, then
+Helidon uses the default configuration.  See the following code from the project you created.
 
 [source,Java]
-.View `Main.startServer' and notice that there are no configuration related classes used.
+.View `Main.startServer' and notice that there are no configuration related classes used:
 ----
     static Server startServer() {
         return Server.create().start(); // <1>
     }
 ----
+<1> There are no `Config` object being used during server creation, so the default configuration is used.
 
-To get started, use the following simple example to change a configuration parameter in the default configuration file,
-`META-INF/microprofile-config.properties`.
-
-[source,bash]
-.Change `app.greeting` in the META-INF/microprofile-config.properties` from `Hello' to `Hi`'.
-----
-appGreeting=Hi
-----
-[source,bash]
-.Build the application, skipping unit tests, then run it:
-----
-mvn package -DskipTests=true
-java -jar target/helidon-quickstart-mp.jar
-----
-
-[source,bash]
-.Run the curl command in a new terminal window:
-----
-curl http://localhost:8080/greet
-----
-
-[source,json]
-.JSON response:
-----
-{
-  "message": "Hi World!" // <1>
-}
-----
-<1> The `appGreeting` value in `META-INF/microprofile-config.properties` is used.
-
-====  Source precedence for default configuration
+=== Source precedence for default configuration
 
 In order to properly configure your application using configuration sources, you need to understand
 the precedence rules that Helidon uses to merge your configuration data.  By default,
@@ -104,29 +98,27 @@ Helidon will use the following sources in precedence order:
 2. Environment variables
 3. Properties specified in `META-INF/microprofile-config.properties`
 
-Each of these sources specify configuration properties in key/value pair, like `color=red'. If any of the Helidon
+Each of these sources specify configuration properties in Java Property format (key/value), like `color=red'. If any of the Helidon
 required properties are not specified in one of these source, then Helidon will use a default value.
 
-The following example will demonstrate this precedence order.  Since environment variable names are restricted to
-alphanumeric characters and underscore, the name must be modified.
+NOTE: Because environment variable names are restricted to alphanumeric characters and underscore,
+Helidon adds aliases to the environment configuration source, allowing entries with dotted and/or
+hyphenated keys to be overriden.  For example, this mapping allows an environment variable named "APP_GREETING" to override
+an entry key named "app.greeting".  In the same way, an environment variable named "APP_dash_GREETING" will map to
+"app-greeting".  See <<config/06_advanced-configuration.adoc,Advance Configuration>> for more information.
 
-NOTE: Helidon adds aliases to this configuration source that enable setting or overriding config entries
-with dotted and/or hyphenated keys.The mapping makes it possible to set or override a config entry with
-a key of "foo.bar" using an environment variable named "FOO_BAR" and "foo.bar-baz" using "FOO_BAR_dash_BAZ".
-Later examples will demonstrate this.  See <<config/06_advanced-configuration,Advance Configuration>> for more information.
+The following examples will demonstrate this precedence order.
 
-[source,java]
-.Update the `GreetingProvider` class and change app.greeting to appGreeting:
-----
-    public GreetingProvider(@ConfigProperty(name = "appGreeting") String message) {
-----
+====  Default configuration file
+
+Use the following simple example to change a configuration parameter in the default configuration file,
+`META-INF/microprofile-config.properties`.  There are no environment variable or system property overrides.
 
 [source,bash]
-.Update the META-INF/microprofile-config.properties` resource and change app.greeting to appGreeting
+.Change `app.greeting` in the META-INF/microprofile-config.properties` from `Hello' to `HelloFromMPConfig`'.
 ----
-appGreeting=Hello
+app.greeting=HelloFromMPConfig
 ----
-
 [source,bash]
 .Build the application, skipping unit tests, then run it:
 ----
@@ -144,10 +136,10 @@ curl http://localhost:8080/greet
 .JSON response:
 ----
 {
-  "message": "Hello World!" // <1>
+  "message": "HelloFromMPConfig World!" // <1>
 }
 ----
-<1> The `appGreeting` value in `META-INF/microprofile-config.properties` is used.
+<1> The new `app.greeting` value in `META-INF/microprofile-config.properties` is used.
 
 =====  Environment variable override
 
@@ -156,7 +148,7 @@ An environment variable is the second highest level of precedence over any other
 [source,bash]
 .Set the environment variable, start the server then run the test:
 ----
-export appGreeting=HelloFromEnvironment
+export APP_GREETING=HelloFromEnvironment
 java -jar target/helidon-quickstart-mp.jar
 ...
 (in a different terminal window)
@@ -170,16 +162,16 @@ curl http://localhost:8080/greet
   "message": "HelloFromEnvironment World!" // <1>
 }
 ----
-<1> The environment variable took precedence over  `META-INF/microprofile-config.properties` .
+<1> The environment variable took precedence over the value in `META-INF/microprofile-config.properties` .
 
 =====  System property override
 
 A system property has the highest level of precedence over any other configuration source.
 
 [source,bash]
-.Run the test with a system property.  The `appGreeting` environment variable is still set:
+.Run the test with a system property.  The `app.greeting` environment variable is still set:
 ----
-java -DappGreeting="HelloFromSystemProperty"  -jar target/helidon-quickstart-mp.jar
+java -Dapp.greeting="HelloFromSystemProperty"  -jar target/helidon-quickstart-mp.jar
 
 (in a different terminal window)
 curl http://localhost:8080/greet
@@ -194,15 +186,16 @@ curl http://localhost:8080/greet
 ----
 <1> The system property took precedence over both the environment variable and `META-INF/microprofile-config.properties`.
 
-This ends the discussion on precedence rules for default configuration using the three default sources.  The next section
-will discuss the remaining sources.
 
-=== Full list of configuration sources
+== Custom Configuration
 
 To use anything besides the default configuration sources, your application needs
 to build a `Config` object and use it when creating the `Server` object.  When you use a `Config` object, you
 are in full control of all configuration sources and precedence, the default sources are no longer used,
-unless you include them in your `Config` object.
+unless you include them in your `Config` object.  This section will show you how to use a custom
+configuration with various sources, formats, and precedence rules.
+
+=== Full list of configuration sources
 
 Here is the full list of external config sources that use can use programmatically.
 
@@ -213,17 +206,14 @@ Here is the full list of external config sources that use can use programmatical
 5. Directory - each non-directory file in the directory becomes a config entry: the file name is the key
 and the contents of that file are used as the corresponding config String value.
 6. A URL resource - contents is parsed according to its inferred format.
+7. A GIT resource
 
-As discussed previously order to properly configure your application using configuration sources, you need to understand
-the precedence rules that Helidon uses to merge your configuration data.  This is discussed in the following section.
-
-
-====  Source precedence using code
-
+You can also define custom sources, such as Git, and use them in your Helidon application.
+See <<config/06_advanced-configuration.adoc,Advance Configuration>> for more information.
 
 === Classpath sources
 
-The following example demonstrates how to add a second internal configuration resource that is discovered in the `classpath`.
+The first custom resource example demonstrates how to add a second internal configuration resource that is discovered in the `classpath`.
 The code needs to build a `Config` object, which in turn is used to build the `Server` object.  The `Config` object is built using a `Config.Builder`,
 which lets you inject any number of sources into the builder.  Furthermore, you can set precedence for the sources.
 The first source has highest precedence, then the next has second highest, and so forth.  This is true for all sources, regardless of the type.
@@ -233,39 +223,80 @@ Add a second resource file, named `config.properties` to the `resources` folder 
 [source,text]
 .`resources/config.properties`
 ----
-app.greeting=Hi
+app.greeting=HelloFrom-config.properties
 ----
 
 [source,java]
-.Update the `Main` class; 1) Add imports, 2) replace the `startServer` method, 3) add the `buildConfig` method:
+.Update the `Main` class; 1) Add imports, 2) replace the `startServer` method:
 ----
-import io.helidon.config.Config;
+import io.helidon.config.Config; //<1>
 import static io.helidon.config.ConfigSources.classpath;
 ...
 
-    static Server startServer() {
-        return Server.builder()
-                .config(buildConfig()) // <1>
-                .build()
-                .start();
-    }
-
-    private static Config buildConfig() {
-        return Config.builder()
-            .sources(
-                classpath("config.properties"), // <2>
-                classpath("META-INF/microprofile-config.properties")) // <3>
-            .build();
-    }
-
+  static Server startServer() {
+    return Server.builder()
+        .config(
+            Config.builder()  //<2>
+                .sources(
+                    classpath("config.properties"),  //<3>
+                    classpath("META-INF/microprofile-config.properties"))  //<4>
+                .build())
+        .build()
+        .start();
+  }
 ----
-<1> Pass the custom `Config` object to the `Server.Builder`.
-<2> Specify the new config.properties resource that is in the `classpath`.  It has the highest precedence of any source.
-<3> Specify the existing `META-INF/microprofile-config.properties` that is also in the `classpath` (see note below).
+<1> Import config classes.
+<2> Pass the custom `Config` object to the `Server.Builder`.
+<3> Specify the new config.properties resource that is in the `classpath`.  It has the highest precedence of any source.
+<4> You must specify the existing `META-INF/microprofile-config.properties` or Helidon will not use it as a Config source
+even though it is considered a default source.
 
-NOTE: When you use a custom `Config` object, you are responsible for specifying all resources,
-even the default `META-INF/microprofile-config.properties` resource.
+[source,bash]
+.Unset the environment variable, build and run the application with the system property.
+----
+unset APP_GREETING
+mvn package -DskipTests=true
+java -jar target/helidon-quickstart-mp.jar
+----
 
+[source,bash]
+.then invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFrom-config.properties World!"
+}
+----
+<1> The greeting was picked up from `config.properties`, overriding the value in `META-INF/microprofile-config.properties`.
+
+NOTE: It is important to remember that configuration from all sources get merged internally.  If you have the same
+ configuration property in multiple sources then only the one with highest precedence will be used at runtime.
+This is true even the same property comes from sources with different formats.
+
+Lets switch the source order and run the test again.
+
+
+[source,java]
+.Update the `Main` class and replace the `startServer` method:
+----
+  static Server startServer() {
+    return Server.builder()
+        .config(
+            Config.builder()
+                .sources(
+                    classpath("META-INF/microprofile-config.properties"), // <1>
+                    classpath("config.properties"))
+                .build())
+        .build()
+        .start();
+  }
+----
+<1> Swap the source order, putting `META-INF/microprofile-config.properties` first.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint below:
@@ -277,21 +308,128 @@ curl http://localhost:8080/greet
 .JSON response:
 ----
 {
-  "message": "Hi World!" // <1>
+  "message": "HelloFromMPConfig World!" // <1>
 }
 ----
-<1> The greeting was picked up from `config.properties`, overriding the value in `META-INF/microprofile-config.properties`.
+<1> The file `META-INF/microprofile-config.properties` was used to get the greeting since it now has precedence over `config.properties`.
 
-NOTE: It is important to remember that configuration from all sources get merged internally.  If you have the same
- configuration property in multiple sources then only the one with highest precedence will be used at runtime.
-This is true even the same property comes from sources with different formats.
+Notice that the code has not specified system properties as a source, so you cannot override the greeting from the command line.
+
+[source,bash]
+.Run the application with the system property.
+----
+java -Dapp.greeting="HelloFromSystemProperty"  -jar target/helidon-quickstart-mp.jar
+----
+
+[source,bash]
+.Invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromMPConfig World!" // <1>
+}
+----
+<1> The greeting was picked up from `META-INF/microprofile-config.properties`, not from  `-Dapp.greeting="HelloFromSystemProperty"`.
+
+Now lets add the code to use system properties as a source and try again.
+
+[source,java]
+.Update the `Main` class and replace the `startServer` method:
+----
+  static Server startServer() {
+    return Server.builder()
+        .config(
+            Config.builder()
+                .sources(
+                    systemProperties(), // <1>
+                    classpath("META-INF/microprofile-config.properties"),
+                    classpath("config.properties"))
+                .build())
+        .build()
+        .start();
+  }
+----
+<1> Add system properties as the source with the highest precedence.
+
+[source,bash]
+.Build then start the application with the system property:
+----
+mvn package -DskipTests=true
+java -Dapp.greeting="HelloFromSystemProperty"  -jar target/helidon-quickstart-mp.jar
+----
+
+[source,bash]
+.Invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromSystemProperty World!" // <1>
+}
+----
+<1> The system property now takes precedence.
+
+You can replace `systemProperties()` with `environmentVariables()` and do the same test:
+
+[source,java]
+.Update the `Main` class and replace the `startServer` method:
+----
+  static Server startServer() {
+    return Server.builder()
+        .config(
+            Config.builder()
+                .sources(
+                    environmentVariables(), // <1>
+                    classpath("META-INF/microprofile-config.properties"),
+                    classpath("config.properties"))
+                .build())
+        .build()
+        .start();
+  }
+----
+<1> Add environment variables as the source with the highest precedence.
+
+[source,bash]
+.Set the environment variable, build then start the application:
+----
+export APP_GREETING=HelloFromEnvironment
+mvn package -DskipTests=true
+java -jar target/helidon-quickstart-mp.jar
+----
+
+[source,bash]
+.Invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromEnvironment World!"
+}
+----
+<1> The environment variable property now takes precedence.
+
+This ends the section on using a custom configuration consisting of system properties, environment variables, and classpath resources.
+At this point, you know to use the `Config.Builder` to set up custom configuration with multiple sources, specifying the precedence.
 
 === External file sources
 
 === URL sources
 
 
-==== Meta-configuration
+=== Meta-configuration
 
 , you can  prepare meta-configuration in a file that declares the sources to load and their attributes.
 
@@ -352,13 +490,11 @@ curl http://localhost:8080/greet
 ----
 <1> The greeting was picked up from `config.properties` since the source file `missing` was not found.
 
-=== Configuration Formats
+
+== Accessing Configuration within an application
 
 
-=== Accessing Configuration within an application
-
-
-=== Integration with Kubernetes
+== Integration with Kubernetes
 
 The following example shows how to integrate the Helidon MP application with Kubernetes.
 
@@ -445,7 +581,7 @@ You can now delete the Kubernetes resources that were just created during this e
 kubectl delete -f ./config.yaml
 ----
 
-=== Summary
+== Summary
 
 This guide demonstrated how to use configuration in a Helidon MP application using various combinations of
 sources and formats:
