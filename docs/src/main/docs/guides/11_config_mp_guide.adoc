@@ -47,26 +47,58 @@ mvn archetype:generate -DinteractiveMode=false \
     -Dpackage=io.helidon.examples.quickstart.mp
 ----
 
-=== Configuration sources
+=== Getting started with configuration
 
-You can configure Helidon to read configuration data from a variety of sources, and in several formats.  Helidon
-will parse and merge all sources into an in-memory tree which represents the configuration’s structure and values.
+Helidon configuration is very flexible and comprehensive, providing you many choices on how to configure
+your application.  You can configure your application from a variety of sources,
+and in several formats.  This guide will explain the various aspects of configuration in detail.
 
-Here is the list of external config sources.  Inclusion and precedence of all of these source can be controlled programmatically,
-as will be discussed later in this guide:
+Helidon uses the default configuration when you start the server without specifying a custom configuration
+as you can see here.
 
-1. Java system properties - the property is a name/value pair.
-2. Environment variables - the property is a name/value pair.
-3. Resources in the classpath - the contents of the resource is parsed according to its inferred format.
-4. File - the contents of the file is parsed according to its inferred format.
-5. Directory - each non-directory file in the directory becomes a config entry: the file name is the key
-and the contents of that file are used as the corresponding config String value.
-6. A URL resource - contents is parsed according to its inferred format.
+[source,Java]
+.View `Main.startServer' and notice that there are no configuration related classes used.
+----
+    static Server startServer() {
+        return Server.create().start(); // <1>
+    }
+----
 
+To get started, use the following simple example to change a configuration parameter in the default configuration file,
+`META-INF/microprofile-config.properties`.
 
-====  Source precedence using external configuration
+[source,bash]
+.Change `app.greeting` in the META-INF/microprofile-config.properties` from `Hello' to `Hi`'.
+----
+appGreeting=Hi
+----
+[source,bash]
+.Build the application, skipping unit tests, then run it:
+----
+mvn package -DskipTests=true
+java -jar target/helidon-quickstart-mp.jar
+----
 
-By default, Helidon will use the following sources in precedence order:
+[source,bash]
+.Run the curl command in a new terminal window:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "Hi World!" // <1>
+}
+----
+<1> The `appGreeting` value in `META-INF/microprofile-config.properties` is used.
+
+====  Source precedence for default configuration
+
+In order to properly configure your application using configuration sources, you need to understand
+the precedence rules that Helidon uses to merge your configuration data.  By default,
+Helidon will use the following sources in precedence order:
 
 1. Java system properties
 2. Environment variables
@@ -162,7 +194,28 @@ curl http://localhost:8080/greet
 ----
 <1> The system property took precedence over both the environment variable and `META-INF/microprofile-config.properties`.
 
-=====  System property override
+This ends the discussion on precedence rules for default configuration using the three default sources.  The next section
+will discuss the remaining sources.
+
+=== Full list of configuration sources
+
+To use anything besides the default configuration sources, your application needs
+to build a `Config` object and use it when creating the `Server` object.  When you use a `Config` object, you
+are in full control of all configuration sources and precedence, the default sources are no longer used,
+unless you include them in your `Config` object.
+
+Here is the full list of external config sources that use can use programmatically.
+
+1. Java system properties - the property is a name/value pair.
+2. Environment variables - the property is a name/value pair.
+3. Resources in the classpath - the contents of the resource is parsed according to its inferred format.
+4. File - the contents of the file is parsed according to its inferred format.
+5. Directory - each non-directory file in the directory becomes a config entry: the file name is the key
+and the contents of that file are used as the corresponding config String value.
+6. A URL resource - contents is parsed according to its inferred format.
+
+As discussed previously order to properly configure your application using configuration sources, you need to understand
+the precedence rules that Helidon uses to merge your configuration data.  This is discussed in the following section.
 
 
 ====  Source precedence using code
