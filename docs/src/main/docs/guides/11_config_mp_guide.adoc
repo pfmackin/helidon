@@ -106,7 +106,8 @@ hyphenated keys to be overriden.  For example, this mapping allows an environmen
 an entry key named "app.greeting".  In the same way, an environment variable named "APP_dash_GREETING" will map to
 "app-greeting".  See <<config/06_advanced-configuration.adoc,Advance Configuration>> for more information.
 
-The following examples will demonstrate this precedence order.
+The following examples will demonstrate this precedence order.  Note that you can override a subset of configuration as needed,
+you do not need to replace the entire configuration within all sources.
 
 ====  Default configuration file
 
@@ -184,7 +185,6 @@ curl http://localhost:8080/greet
 }
 ----
 <1> The system property took precedence over both the environment variable and `META-INF/microprofile-config.properties`.
-
 
 == Custom Configuration
 
@@ -401,9 +401,8 @@ You can replace `systemProperties()` with `environmentVariables()` and do the sa
 <1> Add environment variables as the source with the highest precedence.
 
 [source,bash]
-.Unset the environment variable, build then start the application:
+.Build then start the application:
 ----
-unset APP_GREETING
 mvn package -DskipTests=true
 java -jar target/helidon-quickstart-mp.jar
 ----
@@ -459,15 +458,7 @@ app.greeting=HelloFromConfigFile
 <2> Add mandatory configuration file.
 
 [source,bash]
-.Set the environment variable, build then start the application:
-----
-export APP_GREETING=HelloFromEnvironment
-mvn package -DskipTests=true
-java -jar target/helidon-quickstart-mp.jar
-----
-
-[source,bash]
-.Invoke the endpoint below:
+.Build and run the application, then invoke the following endpoints
 ----
 curl http://localhost:8080/greet
 ----
@@ -492,6 +483,7 @@ otherwise Helidon will generate an error during startup as shown below.  This is
       return Server.builder()
           .config(
               Config.builder()
+                  .disableEnvironmentVariablesSource()
                   .sources(file("missing-file"),  // <1>
                       classpath("META-INF/microprofile-config.properties"))
                   .build())
@@ -534,6 +526,7 @@ HelloFromFileInDirectoryConf
     return Server.builder()
         .config(
             Config.builder()
+                .disableEnvironmentVariablesSource() // <1>
                 .sources(
                     directory("conf"), // <1>
                     classpath("config.properties").optional(),
@@ -672,8 +665,151 @@ sources:
 <2> The name of the mandatory configuration file.
 <3> Specify that the `optional-config-file` file is optional.
 
+[source,bash]
+.Restart the application then invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromMPConfig World!" // <1>
+}
+----
+<1> The `META-INF/microprofile-config.properties` source now takes precedence.
+
+NOTE: When using a meta-config file, you need to explictiy include both environment variables and system properties as
+a source if you want them used.  This is different than using the `Config.Builder`, where environment variables are
+automatically enabled.
+
+Update the `meta-config` file and add the following as your first source.
+
+[source,bash]
+.Update the`meta-config.yaml` file replace the contents:
+----
+sources:
+  - type: "environment-variables" // <1>
+  - type: "classpath"
+    properties:
+      resource: "META-INF/microprofile-config.properties"
+  - type: "file"
+    properties:
+      path: "./config-file.properties"
+----
+<1> Environment variables are now used as a source.
+
+
+[source,bash]
+.Restart the application then the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromEnvironment World!"
+}
+----
+<1> The environment variable property now takes precedence.
 
 == Accessing Configuration within an application
+
+You have used Helidon to customize configuration behavior from your code using the `Config` and
+Config.Builder` classes.  The examples in this section will demonstrate how to access that config data
+at runtime using annotations.  The generated project already does this in the `GreetProvider` class  as
+follows:
+
+[source,java]
+.JSON response:
+----
+    @Inject
+    public GreetingProvider(@ConfigProperty(name = "app.greeting") String message) { // <1>
+        this.message.set(message);
+    }
+----
+<1> The value of the configuration property `app.greeting` is injected into the `GreetingProvider`
+constructor as a `String1` parameter named `message'
+
+The following example, will add a second configuration property named `app.greeting.target` that will
+replace the hard coded `World` target.
+
+[source,java]
+.View the following code from `GreetingProvider.java`:
+----
+    private final AtomicReference<String> message = new AtomicReference<>(); // <1>
+...
+    @Inject
+    public GreetingProvider(@ConfigProperty(name = "app.greeting") String message) { // <2>
+        this.message.set(message);
+    }
+----
+<1> Define a thread safe reference that will refer to the `app.greeting` configuration property.
+<2> The value of the configuration property `app.greeting` is injected into the `GreetingProvider`
+constructor as a `String` parameter named `message'
+
+NOTE: Notice that the member variable '`message' is a reference to the backing configuration property. If the
+configuration property changes,  `message` will refect the latest value. There is no need to update
+the `message` with the new configuration value.
+
+In the following example, you will add a second configuration property and change the code to use it.
+
+[source,java]
+.Replace the code in `GreetingProvider.java` as follows:
+----
+@ApplicationScoped
+public class GreetingProvider {
+    private final AtomicReference<String> message = new AtomicReference<>();
+    private final AtomicReference<String> sender = new AtomicReference<>();  // <1>
+
+    /**
+     * Create a new greeting provider, reading the message from configuration.
+     *
+     * @param message greeting to use
+     */
+    @Inject
+    public GreetingProvider(
+        @ConfigProperty(name = "app.greeting") String message,
+        @ConfigProperty(name = "app.greeting.sender") String sender ) { //<2>
+        this.message.set(message);
+        this.sender.set(sender);
+    }
+
+    String getMessage() {
+        return sender.get() + " says " + message.get(); // <3>
+    }
+
+
+    void setMessage(String message) {
+        this.message.set(message);
+    }
+}
+----
+
+<1> Define a thread safe reference that will refer to the `app.greeting.sender` configuration property.
+<2> The value of the configuration property `app.greeting.sender` is injected into the `GreetingProvider`
+constructor as a `String` parameter named `sender'
+<3> Combine the two configuration properties to retun a greeting message.
+
+[source,bash]
+.Builder and run the application, then invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "Joe says HelloFromConfigFile World!"
+}
+----
+<1> The sender value was retrieved from  `META-INF/microprofile-config.properties`, whereas the
+message came from `config-file.properties`.
+
 
 == Integration with Kubernetes
 
