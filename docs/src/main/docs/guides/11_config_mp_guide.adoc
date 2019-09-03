@@ -57,12 +57,13 @@ optional or mandatory. This guide will explain the various aspects of configurat
 
 === Configuration Formats
 
-Helidon configuration sources can use different formats for the configuration data. The supported formats are:
+Helidon configuration sources can use different formats for the configuration data. Here are the supported formats,
+each with the extension name you should. By default, Helidon will determine the media type based on the extension name.
 
-* Java Property (name/value)
-* JSON
-* YAML
-* HOCON
+* Java Property (.properties)
+* JSON (.json)
+* YAML (.yaml)
+* HOCON (.confg)
 
 You can specify the format on a per-source bases, mixing and matching formats as required.  The remainder of this
 document will use these formats in examples and show you how to configure Helidon to parse them.
@@ -553,7 +554,7 @@ curl http://localhost:8080/greet
 ----
 <1> The greeting was fetched from the file named `app.greeting`.
 
-=== Exceeding three sources
+==== Exceeding three sources
 
 If you have more than three sources you need to use a `ConfigSources` class to create a
 custom source list as shown below.
@@ -854,8 +855,8 @@ curl http://localhost:8080/greet
 Helidon offers a variety of methods to access in-memory configuration.  These can be categorized as _key access_ or _tree navigation_.
 You have been using _key access_ for all of the examples to this point.  For example `app.greeting` is accessing
 the `greeting` child node of the `app` parent node.  There are many options for access this data using navigation
-methods as described in <<03_hierarchical-features, Hierarchical Configuration>>.  This simple example below demonstrates how
-to access a child node as a detached configuration sub-tree.
+methods as described in <<03_hierarchical-features, Hierarchical Configuration>> and <<06_advanced-configuration, Advanced Configuration>>.
+This simple example below demonstrates how to access a child node as a detached configuration sub-tree.
 
 [source,yaml]
 .Create a file `helidon-quickstart-mp/config-file.yaml' and add the following contents:
@@ -910,33 +911,49 @@ curl http://localhost:8080/greet
 }
 ----
 
-
-
 == Integration with Kubernetes
 
-The following example shows how to integrate the Helidon MP application with Kubernetes.
+The following example uses a Kubernetes ConfigMap to pass the configuration data to your Helidon application deployed to Kubernetes.
+
+[source,bash]
+.Generate a ConfigMap from `config-file.properties` then get the contents:
+----
+kubectl create configmap helidon-configmap --from-file config-file.properties
+kubectl get configmap helidon-configmap -o yaml
+----
+
+[source,bash]
+.Generate a ConfigMap from `config-file.properties`:
+----
+apiVersion: v1
+data:
+  config-file.properties: |   // <1>
+    app.greeting=HelloFromConfigFile   // <2>
+kind: ConfigMap
+...
+----
+<1> This file `config-file.properties` will be created within the Kubernetes container at the configmap mountpoint, `/etc/config`.
+<2> The `config-file.properties` file will have this single property defined.
 
 [source,bash]
 .Stop the application and build the docker image:
 ----
-docker build -t helidon-configuration-mp .
+docker build -t helidon-config-mp .
 ----
 
 [source,yaml]
-.Create the Kubernetes YAML specification, named `config.yaml`, with the following content:
+.Create the Kubernetes YAML specification, named `k8s-config.yaml`, with the following content:
 ----
 kind: Service
 apiVersion: v1
 metadata:
-  name: helidon-configuration // <1>
+  name: helidon-config // <1>
   labels:
-    app: helidon-configuration
-  annotations:
-    prometheus.io/scrape: 'true' // <2>
+    app: helidon-config
 spec:
   type: NodePort
   selector:
-    app: helidon-configuration
+    app: helidon-config
   ports:
     - port: 8080
       targetPort: 8080
@@ -945,58 +962,78 @@ spec:
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
-  name: helidon-configuration
+  name: helidon-config
 spec:
   replicas: 1 // <3>
   template:
     metadata:
       labels:
-        app: helidon-configuration
+        app: helidon-config
         version: v1
     spec:
       containers:
-        - name: helidon-configuration
-          image: helidon-configuration-mp
+        - name: helidon-config
+          image: helidon-config-mp
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config // <3>
+      volumes:
+        - name: config-volume
+          configMap:
+            # Provide the name of the ConfigMap containing the files you want
+            # to add to the container
+            name:  helidon-configmap // <4>
 ----
 <1> A service of type `NodePort` that serves the default routes on port `8080`.
-<2> An annotation that will allow Prometheus to discover and scrape the application pod.
-<3> A deployment with one replica of a pod.
+<2> A deployment with one replica of a pod.
+<3> Mount the ConfigMap as a volume at /etc/config.
+<4> Specify the ConfigMap that cotains the configuration data.
 
 
 [source,bash]
 .Create and deploy the application into Kubernetes:
 ----
-kubectl apply -f ./config.yaml
+kubectl apply -f ./k8s-config.yaml
 ----
 
 [source,bash]
 .Get the service information:
 ----
-kubectl get service/helidon-configuration
+kubectl get service/helidon-config
 ----
 
 [source,bash]
 ----
 NAME             TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
-helidon-configuration   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // <1>
+helidon-config   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // <1>
 ----
 <1> A service of type `NodePort` that serves the default routes on port `31143`.
 
 [source,bash]
 .Verify the configuration endpoint using port `30116`, your port will likely be different:
 ----
-curl http://localhost:31143/configuration
+curl http://localhost:31143/greet
 ----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromConfigFile World!"
+}
+----
+<1> The greeting value from `/etc/config/config-file.properties` within the container was used.
+
 
 You can now delete the Kubernetes resources that were just created during this example.
 
 [source,bash]
 .Delete the application Kubernetes resources:
 ----
-kubectl delete -f ./config.yaml
+kubectl delete -f ./k8s-config.yaml
 ----
 
 == Summary
