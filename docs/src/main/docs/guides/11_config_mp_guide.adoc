@@ -251,9 +251,8 @@ import static io.helidon.config.ConfigSources.classpath;
 even though it is considered a default source.
 
 [source,bash]
-.Unset the environment variable, build and run the application with the system property.
+.Build and run the application with the system property.
 ----
-unset APP_GREETING
 mvn package -DskipTests=true
 java -jar target/helidon-quickstart-mp.jar
 ----
@@ -429,8 +428,11 @@ At this point, you know to use the `Config.Builder` to set up custom configurati
 
 === External file sources
 
-You can move all or part of your configuration to external files, making them optional or mandatory. In the following
+You can move all or part of your configuration to external files, making them optional or mandatory.  The obvious advantage to this
+approach is that you do not need to rebuild your application to change configuration.  In the following
 example, the `app.greeting` configuration property will be added to `config-file.properties`.
+
+NOTE: You must explicity disable the environment variables source or unset it from the shell where you start the application.
 
 [source,bash]
 .Create a file named `config-file.properties` in the `helidon-quickstart-mp` directory with the following contents:
@@ -445,14 +447,16 @@ app.greeting=HelloFromConfigFile
       return Server.builder()
           .config(
               Config.builder()
-                  .sources(file("config-file.properties"), // <1>
+                  .disableEnvironmentVariablesSource() // <1>
+                  .sources(file("config-file.properties"), // <2>
                       classpath("META-INF/microprofile-config.properties"))
                   .build())
           .build()
           .start();
   }
 ----
-<1> Add mandatory configuration file.
+<1> Disable environment variables as a source.
+<2> Add mandatory configuration file.
 
 [source,bash]
 .Set the environment variable, build then start the application:
@@ -476,7 +480,6 @@ curl http://localhost:8080/greet
 }
 ----
 <1> The configuration property from the file `config-file.properties` takes precedence.
-
 
 NOTE: If you want the configuration file to be optional, you must use the `optional()` method with `sources`,
 otherwise Helidon will generate an error during startup as shown below.  This is true for both `file` and
@@ -515,6 +518,87 @@ To fix this, use the `optional()` method as shown below, then rerun the test.
 
 === Directory source
 
+A directory source treats every file in the directory as a key, and the file contents as the value.  The
+following example include a directory source as highest precedence.
+
+[source,bash]
+.Create a new directory `helidon-quickstart-mp/conf` then create a file named `app.greeting` with the following contents:
+----
+HelloFromFileInDirectoryConf
+----
+
+[source,java]
+.Update the `Main` class and replace the `startServer` method:
+----
+  static Server startServer() {
+    return Server.builder()
+        .config(
+            Config.builder()
+                .sources(
+                    directory("conf"), // <1>
+                    classpath("config.properties").optional(),
+                    classpath("META-INF/microprofile-config.properties"))
+                .build())
+        .build()
+        .start();
+  }
+----
+<1> Add mandatory configuration directory.
+
+[source,bash]
+.Build then start the application, then invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromFileInDirectoryConf World!"
+}
+----
+<1> The greeting was fetched from the file named `app.greeting`.
+
+=== Exceeding three sources
+
+If you have more than three sources you need to use a `ConfigSources` class to create a
+custom source list as shown below.
+
+[source,java]
+.Update the `Main` class and replace the `startServer` method:
+----
+  static Server startServer() {
+    return Server.builder()
+        .config(
+            Config.builder()
+                .disableEnvironmentVariablesSource()
+                .sources(ConfigSources.create(   // <1>
+                    systemProperties(),
+                    directory("conf"),
+                    classpath("config.properties").optional(),
+                    classpath("META-INF/microprofile-config.properties")))
+                .build())
+        .build()
+        .start();
+  }
+----
+<1> Create a list of four sources using `ConfigSources.create`.
+
+[source,bash]
+.Build then start the application, then invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromFileInDirectoryConf World!"
+}
+----
+<1> The greeting was fetched from the file named `app.greeting`.
 
 
 === Meta-configuration
