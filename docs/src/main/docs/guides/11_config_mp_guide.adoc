@@ -720,82 +720,73 @@ curl http://localhost:8080/greet
 
 You have used Helidon to customize configuration behavior from your code using the `Config` and
 Config.Builder` classes.  The examples in this section will demonstrate how to access that config data
-at runtime using annotations.  The generated project already does this in the `GreetProvider` class  as
-follows:
+at runtime.  As discussed previously, Helidon reads configuration from a config source, which uses a config parser
+to translate the source into an in-memory tree which represents the configuration’s structure and values.
+Your application uses the `Config` object to access that in-memory tree, retrieving config data.
 
-[source,java]
-.JSON response:
-----
-    @Inject
-    public GreetingProvider(@ConfigProperty(name = "app.greeting") String message) { // <1>
-        this.message.set(message);
-    }
-----
-<1> The value of the configuration property `app.greeting` is injected into the `GreetingProvider`
-constructor as a `String1` parameter named `message'
+An in-memory config tree, once loaded, is immutable, even though the data in the underlying config sources can
+change over time.  Your application can find out metadata about a loaded in-memory config and can track changes
+in config sources
 
-The following example, will add a second configuration property named `app.greeting.target` that will
-replace the hard coded `World` target.
+The generated project already acceses configuration data in the `GreetProvider` class  as  follows:
 
 [source,java]
 .View the following code from `GreetingProvider.java`:
 ----
-    private final AtomicReference<String> message = new AtomicReference<>(); // <1>
-...
-    @Inject
-    public GreetingProvider(@ConfigProperty(name = "app.greeting") String message) { // <2>
-        this.message.set(message);
-    }
-----
-<1> Define a thread safe reference that will refer to the `app.greeting` configuration property.
-<2> The value of the configuration property `app.greeting` is injected into the `GreetingProvider`
-constructor as a `String` parameter named `message'
-
-NOTE: Notice that the member variable '`message' is a reference to the backing configuration property. If the
-configuration property changes,  `message` will refect the latest value. There is no need to update
-the `message` with the new configuration value.
-
-In the following example, you will add a second configuration property and change the code to use it.
-
-[source,java]
-.Replace the code in `GreetingProvider.java` as follows:
-----
-@ApplicationScoped
+@ApplicationScoped // <1>
 public class GreetingProvider {
-    private final AtomicReference<String> message = new AtomicReference<>();
-    private final AtomicReference<String> sender = new AtomicReference<>();  // <1>
+    private final AtomicReference<String> message = new AtomicReference<>(); // <2>
 
-    /**
-     * Create a new greeting provider, reading the message from configuration.
-     *
-     * @param message greeting to use
-     */
     @Inject
-    public GreetingProvider(
-        @ConfigProperty(name = "app.greeting") String message,
-        @ConfigProperty(name = "app.greeting.sender") String sender ) { //<2>
+    public GreetingProvider(@ConfigProperty(name = "app.greeting") String message) {   // <3>
         this.message.set(message);
-        this.sender.set(sender);
     }
 
     String getMessage() {
-        return sender.get() + " says " + message.get(); // <3>
+        return message.get();
     }
-
 
     void setMessage(String message) {
         this.message.set(message);
     }
 }
 ----
+<1> This class is application scoped so a single instance of `GreetingProvider` will be shared across the entire application.
+<2> Define a thread safe reference that will refer to the `app.greeting` configuration property.
+<3> The value of the configuration property `app.greeting` is injected into the `GreetingProvider`
+constructor as a `String` parameter named `message'
 
-<1> Define a thread safe reference that will refer to the `app.greeting.sender` configuration property.
-<2> The value of the configuration property `app.greeting.sender` is injected into the `GreetingProvider`
-constructor as a `String` parameter named `sender'
-<3> Combine the two configuration properties to retun a greeting message.
+
+===== Injecting at field level
+
+You can inject configuration at the field level as shown below.  Use the `volatile` keyword to make
+this field thread safe since you cannot use `AtomicReference` with field level injection.
+
+[source,java]
+.Update the following code from `GreetingProvider.java`:
+----
+@ApplicationScoped
+public class GreetingProvider {
+
+    @Inject
+    @ConfigProperty(name = "app.greeting")
+    private volatile String message;
+
+    String getMessage() {
+        return message;
+    }
+
+    void setMessage(String message) {
+        this.message = message;
+    }
+}
+
+----
+<1> Inject the value of `app.greeting` into the `GreetingProvider` object.
+<2> Define a class member variable to hold the greeting.
 
 [source,bash]
-.Builder and run the application, then invoke the endpoint below:
+.Build and start the application, then invoke the endpoint below:
 ----
 curl http://localhost:8080/greet
 ----
@@ -804,11 +795,121 @@ curl http://localhost:8080/greet
 .JSON response:
 ----
 {
-  "message": "Joe says HelloFromConfigFile World!"
+  "message": "Joe says Hello World!"
 }
 ----
-<1> The sender value was retrieved from  `META-INF/microprofile-config.properties`, whereas the
-message came from `config-file.properties`.
+<1> The value of the `GreetingProvider' member variable  `app.greeting` was changed to `Hello`.
+
+===== Injecting the Config object
+
+You can inject the `Config` object into the class and access it directly as shown below.
+This object is not initialized when the `GreetingProvider` is called, so you need to provide
+a method (`onStartup`) that observes `@Initialized` so you know the object is ready for
+use.
+
+[source,java]
+.Update the following code from `GreetingProvider.java`:
+----
+@ApplicationScoped
+public class GreetingProvider {
+    private final AtomicReference<String> message = new AtomicReference<>();
+
+    @Inject
+    Config config;
+
+    public void onStartUp(@Observes @Initialized(ApplicationScoped.class) Object init) {
+        message.set(config.get("app.greetingType.formal").asString().get());
+    }
+
+    String getMessage() {
+        return message.get();
+    }
+
+    void setMessage(String message) {
+        this.message.set(message);
+    }
+}
+----
+<1> Inject the value of `app.greeting` into the `GreetingProvider` object.
+<2> Define a class member variable to hold the greeting.
+
+[source,bash]
+.Build and start the application, then invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "Joe says Hello World!"
+}
+----
+<1> The value of the `GreetingProvider' member variable  `app.greeting` was changed to `Hello`.
+
+
+===== Navigating the Config tree
+
+Helidon offers a variety of methods to access in-memory configuration.  These can be categorized as _key access_ or _tree navigation_.
+You have been using _key access_ for all of the examples to this point.  For example `app.greeting` is accessing
+the `greeting` child node of the `app` parent node.  There are many options for access this data using navigation
+methods as described in <<03_hierarchical-features, Hierarchical Configuration>>.  This simple example below demonstrates how
+to access a child node as a detached configuration sub-tree.
+
+[source,yaml]
+.Create a file `helidon-quickstart-mp/config-file.yaml' and add the following contents:
+----
+app:
+  greeting:
+    sender: "Joe"
+    message: "Hello-from-config-file.ya
+----
+
+[source,yaml]
+.Update the  `meta-file.yaml' with the following contents:
+----
+sources:
+  - type: "classpath"
+    properties:
+      resource: "META-INF/microprofile-config.properties"
+  - type: "file"
+    properties:
+      path: "./config-file.properties"
+  - type: "file"
+    properties:
+      path: "./config-file.yaml"
+      optional: tru
+----
+
+[source,java]
+.Replace `GreetingProvider.onStartup` with the following code:
+----
+    public void onStartUp(@Observes @Initialized(ApplicationScoped.class) Object init) {
+        Config appNode = config.get("app.greeting"); // <1>
+        message.set(appNode.get("message").asString().get());  // <2>
+        sender.set(appNode.get("sender").asString().get());   // <3>
+    }
+
+----
+<1> Get the configuration subtree where the `app.greeting` node is the root.
+<2> Get the value from the `message` `Config` node.
+<3> Get the value from the `sender` `Config` node.
+
+[source,bash]
+.Build and start the application, then invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "Joe says Hello-from-config-file.yaml World!"
+}
+----
+
 
 
 == Integration with Kubernetes
