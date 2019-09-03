@@ -337,7 +337,6 @@ curl http://localhost:8080/greet
 ----
 <1> The greeting was picked up from `META-INF/microprofile-config.properties`, not from  `-Dapp.greeting="HelloFromSystemProperty"`.
 
-
 Add the code to use system properties as a source and try again.
 
 [source,java]
@@ -403,9 +402,9 @@ You can replace `systemProperties()` with `environmentVariables()` and do the sa
 <1> Add environment variables as the source with the highest precedence.
 
 [source,bash]
-.Set the environment variable, build then start the application:
+.Unset the environment variable, build then start the application:
 ----
-export APP_GREETING=HelloFromEnvironment
+unset APP_GREETING
 mvn package -DskipTests=true
 java -jar target/helidon-quickstart-mp.jar
 ----
@@ -427,58 +426,128 @@ curl http://localhost:8080/greet
 
 This ends the section on using a custom configuration consisting of system properties, environment variables, and classpath resources.
 At this point, you know to use the `Config.Builder` to set up custom configuration with multiple sources, specifying the precedence.
-In the next section, you will use other source types and formats.
 
 === External file sources
 
-=== URL sources
+You can move all or part of your configuration to external files, making them optional or mandatory. In the following
+example, the `app.greeting` configuration property will be added to `config-file.properties`.
+
+[source,bash]
+.Create a file named `config-file.properties` in the `helidon-quickstart-mp` directory with the following contents:
+----
+app.greeting=HelloFromConfigFile
+----
+
+[source,java]
+.Update the `Main` class and replace the `startServer` method:
+----
+  static Server startServer() {
+      return Server.builder()
+          .config(
+              Config.builder()
+                  .sources(file("config-file.properties"), // <1>
+                      classpath("META-INF/microprofile-config.properties"))
+                  .build())
+          .build()
+          .start();
+  }
+----
+<1> Add mandatory configuration file.
+
+[source,bash]
+.Set the environment variable, build then start the application:
+----
+export APP_GREETING=HelloFromEnvironment
+mvn package -DskipTests=true
+java -jar target/helidon-quickstart-mp.jar
+----
+
+[source,bash]
+.Invoke the endpoint below:
+----
+curl http://localhost:8080/greet
+----
+
+[source,json]
+.JSON response:
+----
+{
+  "message": "HelloFromConfigFile World!"
+}
+----
+<1> The configuration property from the file `config-file.properties` takes precedence.
+
+
+NOTE: If you want the configuration file to be optional, you must use the `optional()` method with `sources`,
+otherwise Helidon will generate an error during startup as shown below.  This is true for both `file` and
+`classpath` sources.  By default these sources are mandatory.
+
+[source,java]
+.Update the `Main` class and replace the `startServer` method:
+----
+  static Server startServer() {
+      return Server.builder()
+          .config(
+              Config.builder()
+                  .sources(file("missing-file"),  // <1>
+                      classpath("META-INF/microprofile-config.properties"))
+                  .build())
+          .build()
+          .start();
+  }
+----
+<1> <1> specify a file that doesn't exist.
+
+[source,bash]
+.Build then start the application and you will see the following output.
+----
+Exception in thread "main" io.helidon.config.ConfigException: Cannot load data from mandatory source FileConfig[missing-file]. File 'missing-file' not found.
+----
+
+To fix this, use the `optional()` method as shown below, then rerun the test.
+
+----
+...
+                  .sources(file("missing-file").optional(),  // <1>
+...
+----
+<1> The `missing-file` configuration file is now optional.
+
+=== Directory source
+
 
 
 === Meta-configuration
 
-, you can  prepare meta-configuration in a file that declares the sources to load and their attributes.
-
-You can either specify the meta-config file in your application or allow the config system to search for and load meta-config from a preset list of possible sources.
-
-You can use an external file as a configuration source and mark it as optional.  By default, any specified external source is mandatory,
-if it is missing, your application will not start.  The following example will demonstrate this.
-
-[source,java]
-.Replace the `Main.buildConfig` method with the following:
-----
-    private static Config buildConfig() {
-        return Config.builder()
-            .sources(
-                file("missing"),  // <1>
-                classpath("config.properties"),
-                classpath("META-INF/microprofile-config.properties"))
-            .build();
-    }
-----
-<1> Specifiy a file configuration source that doesn't exist.
-
+Instead of directly specifying the configuration sources in your code, you can use meta-configuration in a file that declares
+the configuration sources and their attributes. This requires using the `Config.loadSourcesFrom` method rather than a `Config.Buider`
+object. The contents of the meta-configuration file needs to be: JSON, YAML, or HOCON.  YAML is used in the following example.
 
 [source,bash]
-.Build and run the application.  You should see the following exception:
+.Create a file named `meta-config.yaml` in the `helidon-quickstart-mp` directory with the following contents:
 ----
-Exception in thread "main" io.helidon.config.ConfigException: Cannot load data from mandatory source FileConfig[missing]. File 'missing' not found.
-----
+sources:
+    - type: "file"  // <1>
+      properties:
+        path: "config-file.properties"  // <2>
+        optional: false // <3>
 
-This can be fixed by making the file optional.
+----
+<1> The source type.
+<2> The name of the configuration file.
+<3> The configuration file is mandatory.
 
 [source,java]
-.Replace the `Main.buildConfig` method with the following:
+.Update the `Main` class and replace the `startServer` method:
 ----
-    private static Config buildConfig() {
-        return Config.builder()
-            .sources(
-                file("missing").optional(), // <1>
-                classpath("config.properties"),
-                classpath("META-INF/microprofile-config.properties"))
-            .build();
-    }
+      static Server startServer() {
+          return Server.builder()
+              .config(Config.loadSourcesFrom( file("meta-config.yaml")))  // <1>
+              .build()
+              .start();
+      }
 ----
-<1> This file is now optional.
+<1> Specify the meta-configuration file, which contains a single configuration source.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint below:
@@ -490,14 +559,37 @@ curl http://localhost:8080/greet
 .JSON response:
 ----
 {
-  "message": "Hi World!" // <1>
+  "message": "HelloFromConfigFile World!"
 }
 ----
-<1> The greeting was picked up from `config.properties` since the source file `missing` was not found.
+<1> The file `META-INF/microprofile-config.properties` was used to get the greeting.
+
+The source precedence order in a meta-configuration file is the order of appearance in the file.
+This is demonstrated below where the `META-INF/microprofile-config.properties` has highest precedence.
+
+[source,bash]
+.Update the`meta-config.yaml` file and add the classpath source:
+----
+sources:
+sources:
+  - type: "classpath"  // <1>
+    properties:
+      resource: "META-INF/microprofile-config.properties" // <2>
+  - type: "file"
+    properties:
+      path: "./config-file.properties" // <3>
+  - type: "file"
+    properties:
+      path: "optional-config-file"
+      optional: true  // <4>
+----
+<1> The source type specifies a classpath resource.
+<2> The name of the manadatory resource.
+<2> The name of the mandatory configuration file.
+<3> Specify that the `optional-config-file` file is optional.
 
 
 == Accessing Configuration within an application
-
 
 == Integration with Kubernetes
 
