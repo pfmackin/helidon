@@ -40,7 +40,6 @@ Furthermore, you can customize the precedence of sources and make them optional 
 This guide introduces Helidon MP configuration and demonstrates the fundamental concepts using several examples.
 Refer to <<config/01_introduction.adoc, Helidon Config>> for the full configuration concepts documentation.
 
-
 === Create a sample Helidon MP project
 
 Use the Helidon MP Maven archetype to create a simple project that can be used for the examples in this guide.
@@ -57,7 +56,7 @@ mvn archetype:generate -DinteractiveMode=false \
     -Dpackage=io.helidon.examples.quickstart.mp
 ----
 
-=== Config Formats
+=== Configuration Formats
 
 Helidon configuration sources can use different formats for the configuration data. You can specify the
 format on a per-source bases, mixing and matching formats as required.  Here are the supported formats,
@@ -216,7 +215,7 @@ which lets you inject any number of sources into the builder.  Furthermore, you 
 The first source has highest precedence, then the next has second highest, and so forth.
 
 [source,text]
-.Add a resource file, named `config.properties` to the `resources` folder with the following content:
+.Add a resource file, named `config.properties` to the `resources` directory with the following contents:
 ----
 app.greeting=HelloFrom-config.properties
 ----
@@ -505,7 +504,7 @@ The source precedence order in a meta-configuration file is the order of appeara
 This is demonstrated below where the `config-file.properties` has highest precedence.
 
 [source,bash]
-.Update the `meta-config.yaml` file and add the classpath source:
+.Replace the contents of the `meta-config.yaml` file:
 ----
 sources:
   - type: "file" // <1>
@@ -538,7 +537,7 @@ When using a meta-config file, you need to explicitly include both environment v
 a source if you want to use them.
 
 [source,bash]
-.Update the `meta-config.yaml` file replace the contents:
+.Replace the contents of the `meta-config.yaml` file:
 ----
 sources:
   - type: "environment-variables" // <1>
@@ -721,9 +720,6 @@ sources:
       resource: "META-INF/microprofile-config.properties"
   - type: "file"
     properties:
-      path: "./config-file.properties"
-  - type: "file"
-    properties:
       path: "./config-file.yaml"
 ----
 
@@ -828,15 +824,16 @@ docker build -t helidon-config-mp .
 ----
 
 [source,bash]
-.Generate a ConfigMap from `config-file.properties` and get the ConfigMap contents:
+.Generate a ConfigMap from `config-file.properties`:
 ----
 kubectl create configmap helidon-configmap --from-file config-file.properties
-kubectl get configmap helidon-configmap -o yaml
 ----
 
 [source,bash]
 .View the contents of the ConfigMap:
 ----
+kubectl get configmap helidon-configmap -o yaml
+...
 apiVersion: v1
 data:
   config-file.properties: |   // <1>
@@ -849,7 +846,7 @@ kind: ConfigMap
 
 
 [source,yaml]
-.Create the Kubernetes YAML specification, named `k8s-config.yaml`, with the following content:
+.Create the Kubernetes YAML specification, named `k8s-config.yaml`, with the following contents:
 ----
 kind: Service
 apiVersion: v1
