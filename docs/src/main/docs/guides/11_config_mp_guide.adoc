@@ -61,7 +61,7 @@ mvn archetype:generate -DinteractiveMode=false \
 
 Helidon configuration sources can use different formats for the configuration data. You can specify the
 format on a per-source bases, mixing and matching formats as required.  Here are the supported formats,
-each with the extension name you should. By default, Helidon will determine the media type based on the extension name.
+each with the extension name you should use. By default, Helidon will determine the media type based on the extension name.
 
 * Java Property (.properties)
 * JSON (.json)
@@ -201,10 +201,9 @@ Here is the full list of external config sources that use can use programmatical
 2. Environment variables - the property is a name/value pair.
 3. Resources in the classpath - the contents of the resource is parsed according to its inferred format.
 4. File - the contents of the file is parsed according to its inferred format.
-5. Directory - each non-directory file in the directory becomes a config entry: the file name is the key
+5. Directory - each non-directory file in the directory becomes a config entry: the file name is the key.
 and the contents of that file are used as the corresponding config String value.
 6. A URL resource - contents is parsed according to its inferred format.
-7. A GIT resource
 
 You can also define custom sources, such as Git, and use them in your Helidon application.
 See <<config/06_advanced-configuration.adoc,Advanced Config>> for more information.
@@ -214,7 +213,7 @@ See <<config/06_advanced-configuration.adoc,Advanced Config>> for more informati
 The first custom resource example demonstrates how to add a second internal configuration resource that is discovered in the `classpath`.
 The code needs to build a `Config` object, which in turn is used to build the `Server` object.  The `Config` object is built using a `Config.Builder`,
 which lets you inject any number of sources into the builder.  Furthermore, you can set precedence for the sources.
-The first source has highest precedence, then the next has second highest, and so forth.  This is true for all sources, regardless of the type.
+The first source has highest precedence, then the next has second highest, and so forth.
 
 [source,text]
 .Add a resource file, named `config.properties` to the `resources` folder with the following content:
@@ -246,7 +245,7 @@ import static io.helidon.config.ConfigSources.classpath;
 <2> Pass the custom `Config` object to the `Server.Builder`.
 <3> Disable the environment variables as a source.
 <4> Specify the new config.properties resource that is in the `classpath`.
-<5> You must specify the existing `META-INF/microprofile-config.properties` or Helidon will not use it as a Config source
+<5> You must specify the existing `META-INF/microprofile-config.properties` or Helidon will not use it as a configuration source
 even though it is considered a default source.
 
 [source,bash]
@@ -425,7 +424,7 @@ curl http://localhost:8080/greet
 
 ==== Exceeding three sources
 
-If you have more than three sources you need to use a `ConfigSources` class to create a
+If you have more than three sources, you need to use a `ConfigSources` class to create a
 custom source list as shown below.
 
 [source,java]
@@ -457,10 +456,9 @@ curl http://localhost:8080/greet
 ...
 
 {
-  "message": "HelloFromFileInDirectoryConf World!" // <1>
+  "message": "HelloFromFileInDirectoryConf World!"
 }
 ----
-<1> The greeting was fetched from the file named `app.greeting`.
 
 === Meta-configuration
 
@@ -513,19 +511,17 @@ sources:
   - type: "file" // <1>
     properties:
       path: "./config-file.properties" // <2>
-  - type: "classpath"  // <3>
+  - type: "classpath"
     properties:
-      resource: "META-INF/microprofile-config.properties" // <4>
+      resource: "META-INF/microprofile-config.properties"
   - type: "file"
     properties:
       path: "optional-config-file"
-      optional: true  // <5>
+      optional: true  // <3>
 ----
 <1> The source type specifies a file.
 <2> The name of the mandatory configuration file.
-<3> The source type specifies a classpath resource.
-<4> The name of the mandatory resource.
-<5> Specify that the `optional-config-file` file is optional.
+<3> Specify that the `optional-config-file` file is optional.
 
 [source,bash]
 .Restart the application, then invoke the endpoint below and check the response:
@@ -538,10 +534,8 @@ curl http://localhost:8080/greet
 ----
 <1> The `config-file.properties` source now takes precedence.
 
-NOTE: When using a meta-config file, you need to explicitly include both environment variables and system properties as
-a source if you want them used.
-
-Update the `meta-config` file and add the following as your first source.
+When using a meta-config file, you need to explicitly include both environment variables and system properties as
+a source if you want to use them.
 
 [source,bash]
 .Update the `meta-config.yaml` file replace the contents:
@@ -654,14 +648,14 @@ curl http://localhost:8080/greet
 ===== Injecting the Config object
 
 You can inject the `Config` object into the class and access it directly as shown below.
-This object is not initialized when the `GreetingProvider` is called, so you need to provide
+This object is not initialized when the `GreetingProvider` constructor is called, so you need to provide
 a method (`onStartup`) that observes `@Initialized` so you know the object is ready for
 use.
 
 [source,java]
 .Update the `GreetingProvider.java` file; 1) add new import and 2)replace the `GreetingProvider` class:
 ----
-import io.helidon.config.Config;
+import io.helidon.config.Config; // <1>
 import javax.enterprise.context.Initialized;
 import javax.enterprise.event.Observes;
 ...
@@ -671,10 +665,10 @@ public class GreetingProvider {
     private final AtomicReference<String> message = new AtomicReference<>();
 
     @Inject
-    Config config;  // <1>
+    Config config;  // <2>
 
     public void onStartUp(@Observes @Initialized(ApplicationScoped.class) Object init) {
-        message.set(config.get("app.greeting").asString().get()); // <2>
+        message.set(config.get("app.greeting").asString().get()); // <3>
     }
 
     String getMessage() {
@@ -686,8 +680,9 @@ public class GreetingProvider {
     }
 }
 ----
-<1> Inject the `Config` object into the `GreetingProvider` object.
-<2> Get the `app.greeting` value from the `Config` object and set the member variable.
+<1> Add three new imports.
+<2> Inject the `Config` object into the `GreetingProvider` object.
+<3> Get the `app.greeting` value from the `Config` object and set the member variable.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -840,7 +835,7 @@ kubectl get configmap helidon-configmap -o yaml
 ----
 
 [source,bash]
-.The contents of the ConfigMap:
+.View the contents of the ConfigMap:
 ----
 apiVersion: v1
 data:
@@ -849,7 +844,7 @@ data:
 kind: ConfigMap
 ...
 ----
-<1> The file `config-file.properties` will be created within the Kubernetes container in `/etc/config`.
+<1> The file `config-file.properties` will be created within the Kubernetes container.
 <2> The `config-file.properties` file will have this single property defined.
 
 
@@ -901,7 +896,7 @@ spec:
 ----
 <1> A service of type `NodePort` that serves the default routes on port `8080`.
 <2> A deployment with one replica of a pod.
-<3> Mount the ConfigMap as a volume at `/etc/config`.
+<3> Mount the ConfigMap as a volume at `/etc/config`.  This is where Kubernetes will create `config-file.properties`.
 <4> Specify the ConfigMap which contains the configuration data.
 
 
