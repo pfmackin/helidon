@@ -82,7 +82,7 @@ In your application code, Helidon uses the default configuration when you create
 See the following code from the project you created.
 
 [source,Java]
-.View `Main.startServer':
+.View `Main.startServer`:
 ----
     static Server startServer() {
         return Server.create().start(); // <1>
@@ -100,7 +100,7 @@ Helidon will use the following sources in precedence order:
 2. Environment variables
 3. Properties specified in `META-INF/microprofile-config.properties`
 
-Each of these sources specify configuration properties in Java Property format (key/value), like `color=red'. If any of the Helidon
+Each of these sources specify configuration properties in Java Property format (key/value), like `color=red`. If any of the Helidon
 required properties are not specified in one of these source, like `server.port`, then Helidon will use a default value.
 
 NOTE: Because environment variable names are restricted to alphanumeric characters and underscore,
@@ -117,7 +117,7 @@ Change a configuration parameter in the default configuration resource file, `ME
 There are no environment variable or system property overrides defined.
 
 [source,bash]
-.Change `app.greeting` in the META-INF/microprofile-config.properties` from `Hello' to `HelloFromMPConfig`:
+.Change `app.greeting` in the META-INF/microprofile-config.properties` from `Hello` to `HelloFromMPConfig`:
 ----
 app.greeting=HelloFromMPConfig
 ----
@@ -368,7 +368,7 @@ otherwise Helidon will generate an error during startup as shown below.  This is
 [source,bash]
 .Build then start the application and you will see the following output:
 ----
-Exception in thread "main" io.helidon.config.ConfigException: Cannot load data from mandatory source FileConfig[missing-file]. File 'missing-file' not found.
+Exception in thread "main" io.helidon.config.ConfigException: Cannot load data from mandatory source FileConfig[missing-file]. File `missing-file` not found.
 ----
 
 To fix this, use the `optional` method as shown below, then rerun the test.
@@ -504,7 +504,7 @@ curl http://localhost:8080/greet
 <1> The `META-INF/microprofile-config.properties` resource file was used to get the greeting.
 
 The source precedence order in a meta-configuration file is the order of appearance in the file.
-This is demonstrated below where the `META-INF/microprofile-config.properties` has highest precedence.
+This is demonstrated below where the `config-file.properties` has highest precedence.
 
 [source,bash]
 .Update the `meta-config.yaml` file and add the classpath source:
@@ -533,7 +533,7 @@ sources:
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!" // <1>
+  "message": "HelloFromConfigFile World!" // <1>
 }
 ----
 <1> The `META-INF/microprofile-config.properties` source now takes precedence.
@@ -575,7 +575,7 @@ An in-memory config tree, once loaded, is immutable, even though the data in the
 change over time.  Your application can find out metadata about a loaded in-memory config and can track changes
 in config sources
 
-The generated project already accesses configuration data in the `GreetProvider` class  as  follows:
+The generated project already accesses configuration data in the `GreetingProvider` class  as  follows:
 
 [source,java]
 .View the following code from `GreetingProvider.java`:
@@ -601,7 +601,7 @@ public class GreetingProvider {
 <1> This class is application scoped so a single instance of `GreetingProvider` will be shared across the entire application.
 <2> Define a thread safe reference that will refer to the message member variable.
 <3> The value of the configuration property `app.greeting` is injected into the `GreetingProvider`
-constructor as a `String` parameter named `message'
+constructor as a `String` parameter named `message`
 
 
 ===== Injecting at field level
@@ -610,7 +610,7 @@ You can inject configuration at the field level as shown below.  Use the `volati
 this field thread safe since you cannot use `AtomicReference` with field level injection.
 
 [source,yaml]
-.Update the  `meta-config.yaml' with the following contents:
+.Update the  `meta-config.yaml` with the following contents:
 ----
 sources:
   - type: "classpath"
@@ -650,7 +650,7 @@ curl http://localhost:8080/greet
   "message": "HelloFromMPConfig World!" // <1>
 }
 ----
-<1> The value of the `GreetingProvider' member variable  `app.greeting` was changed to `Hello`.
+<1> The value of the `GreetingProvider` member variable  `app.greeting` was changed to `Hello`.
 
 ===== Injecting the Config object
 
@@ -699,7 +699,7 @@ curl http://localhost:8080/greet
   "message": "HelloFromMPConfig World!"
 }
 ----
-<1> The value of the `GreetingProvider' member variable  `app.greeting` was changed to `Hello`.
+<1> The value of the `GreetingProvider` member variable  `app.greeting` was changed to `Hello`.
 
 
 ===== Navigating the Config tree
@@ -711,7 +711,7 @@ methods as described in <<config/03_hierarchical-features.adoc,Hierarchical Conf
 This simple example below demonstrates how to access a child node as a detached configuration sub-tree.
 
 [source,yaml]
-.Create a file `config-file.yaml' in the `helidon-quickstart-mp` directory and add the following contents:
+.Create a file `config-file.yaml` in the `helidon-quickstart-mp` directory and add the following contents:
 ----
 app:
   greeting:
@@ -720,7 +720,7 @@ app:
 ----
 
 [source,yaml]
-.Update the  `meta-config.yaml' with the following contents:
+.Update the  `meta-config.yaml` with the following contents:
 ----
 sources:
   - type: "classpath"
