@@ -111,9 +111,9 @@ an entry key named "app.greeting".  In the same way, an environment variable nam
 
 The following examples will demonstrate this precedence order.
 
-==== Default configuration file
+==== Default configuration resource
 
-Change a configuration parameter in the default configuration file, `META-INF/microprofile-config.properties`.
+Change a configuration parameter in the default configuration resource file, `META-INF/microprofile-config.properties`.
 There are no environment variable or system property overrides defined.
 
 [source,bash]
@@ -183,7 +183,7 @@ curl http://localhost:8080/greet
 ----
 <1> The system property took precedence over both the environment variable and `META-INF/microprofile-config.properties`.
 
-== Custom Config
+== Custom configuration sources
 
 To use custom configuration sources, your application needs to use a `Config` object when
 creating a `Server` object.  When you use a `Config` object, you are in full control of
@@ -376,7 +376,7 @@ To fix this, use the `optional` method as shown below, then rerun the test.
 ----
 ...
     file("missing-file").optional(), // <1>
-...
+
 ----
 <1> The `missing-file` configuration file is now optional.
 
@@ -386,7 +386,7 @@ A directory source treats every file in the directory as a key, and the file con
 following example include a directory source as highest precedence.
 
 [source,bash]
-.Create a new directory `helidon-quickstart-mp/conf` then create a file named `app.greeting` with the following contents:
+.Create a new directory `helidon-quickstart-mp/conf` then create a file named `app.greeting` in that directory with the following contents:
 ----
 HelloFromFileInDirectoryConf
 ----
@@ -475,14 +475,10 @@ sources:
   - type: "classpath" // <1>
     properties:
       resource: "META-INF/microprofile-config.properties" // <2>
-  - type: "file"  // <3>
-    properties:
-      path: "config-file.properties" // <4>
 ----
 <1> The source type.
 <2> The name of the mandatory configuration resource.
-<3> The second source type
-<3> The path of the mandatory configuration file.
+
 
 [source,java]
 .Update the `Main` class and replace the `startServer` method:
@@ -502,10 +498,10 @@ sources:
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromConfigFile World!"
+  "message": "HelloFromMPConfig World!"
 }
 ----
-<1> The file `config-file.properties` was used to get the greeting.
+<1> The `META-INF/microprofile-config.properties` resource file was used to get the greeting.
 
 The source precedence order in a meta-configuration file is the order of appearance in the file.
 This is demonstrated below where the `META-INF/microprofile-config.properties` has highest precedence.
@@ -514,21 +510,22 @@ This is demonstrated below where the `META-INF/microprofile-config.properties` h
 .Update the `meta-config.yaml` file and add the classpath source:
 ----
 sources:
-  - type: "classpath"  // <1>
+  - type: "file" // <1>
     properties:
-      resource: "META-INF/microprofile-config.properties" // <2>
-  - type: "file"
+      path: "./config-file.properties" // <2>
+  - type: "classpath"  // <3>
     properties:
-      path: "./config-file.properties" // <3>
+      resource: "META-INF/microprofile-config.properties" // <4>
   - type: "file"
     properties:
       path: "optional-config-file"
-      optional: true  // <4>
+      optional: true  // <5>
 ----
-<1> The source type specifies a classpath resource.
-<2> The name of the mandatory resource.
-<3> The name of the mandatory configuration file.
-<4> Specify that the `optional-config-file` file is optional.
+<1> The source type specifies a file.
+<2> The name of the mandatory configuration file.
+<3> The source type specifies a classpath resource.
+<4> The name of the mandatory resource.
+<5> Specify that the `optional-config-file` file is optional.
 
 [source,bash]
 .Restart the application, then invoke the endpoint below and check the response:
@@ -563,7 +560,8 @@ sources:
 <2> System properties are now used as a source.
 
 
-You can re-run the previous tests that exercised environment variables and system properties.
+You can re-run the previous tests that exercised environment variables and system properties.  Swap the two types to see
+the precedence change.  Be sure to unset APP_GREETING after you finish testing.
 
 == Accessing Config within an application
 
@@ -853,7 +851,7 @@ data:
 kind: ConfigMap
 ...
 ----
-<1> This file `config-file.properties` will be created within the Kubernetes container in `/etc/config`.
+<1> The file `config-file.properties` will be created within the Kubernetes container in `/etc/config`.
 <2> The `config-file.properties` file will have this single property defined.
 
 
@@ -943,9 +941,10 @@ curl http://localhost:31143/greet
 You can now delete the Kubernetes resources that were just created during this example.
 
 [source,bash]
-.Delete the application Kubernetes resources:
+.Delete the Kubernetes resources:
 ----
 kubectl delete -f ./k8s-config.yaml
+kubectl delete configmap  helidon-configmap
 ----
 
 == Summary
