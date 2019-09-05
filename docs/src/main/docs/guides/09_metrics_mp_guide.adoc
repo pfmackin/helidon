@@ -253,7 +253,7 @@ public class GreetingCards {
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "any-card", monotonic = true)  // <3>
+  @Counted(name = "any-card")  // <3>
   public JsonObject anyCard() throws InterruptedException {
     return createResponse("Here are some random cards ...");
   }
@@ -272,8 +272,9 @@ invocation.
 <3> The annotation `@Counted` will register a `Counter` metric for this method, creating it if needed.
 The counter is incremented each time the anyCards method is called.  The `name` attribute is optional.
 
-NOTE: You must set `monotonic` field to `true` to force the count to increment when entering the method.
-The default behavior is to decrement when exiting the method.
+NOTE: For Metrics 1.1, you must set `monotonic` field to `true` to force the count to increment when entering the method.
+The default behavior is to decrement when exiting the method.  Here is an example:
+`@Counted(name = "any-card", monotonic = true)`.
 
 
 [source,java]
@@ -339,7 +340,7 @@ public class GreetingCards {
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "cardCount", absolute = true, monotonic = true) //<1>
+  @Counted(name = "cardCount", absolute = true) //<1>
   @Metered(name = "cardMeter", absolute = true, unit = MetricUnits.MILLISECONDS) //<2>
   @Timed(name = "cardTimer", absolute = true, unit = MetricUnits.MILLISECONDS) //<3>
   public JsonObject anyCard() throws InterruptedException {
@@ -429,7 +430,7 @@ public class GreetingCards {
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "anyCard",absolute = true, monotonic = true)
+  @Counted(name = "anyCard",absolute = true)
   public JsonObject anyCard() throws InterruptedException {
     return createResponse("Here are some cards ...");
   }
@@ -437,7 +438,7 @@ public class GreetingCards {
   @GET
   @Path("/birthday")
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "specialEventCard", absolute = true, monotonic = true, reusable = true)  // <1>
+  @Counted(name = "specialEventCard", absolute = true, reusable = true)  // <1>
   public JsonObject birthdayCard() throws InterruptedException {
     return createResponse("Here are some birthday cards ...");
   }
@@ -445,7 +446,7 @@ public class GreetingCards {
   @GET
   @Path("/wedding")
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "specialEventCard", absolute = true, monotonic = true, reusable = true)  // <2>
+  @Counted(name = "specialEventCard", absolute = true, reusable = true)  // <2>
   public JsonObject weddingCard() throws InterruptedException {
     return createResponse("Here are some wedding cards ...");
   }
@@ -503,14 +504,14 @@ import org.eclipse.microprofile.metrics.annotation.Counted;
 
 @Path("/cards")
 @RequestScoped
-@Counted(name = "totalCards", monotonic = true) // <1>
+@Counted(name = "totalCards") // <1>
 public class GreetingCards {
 
   private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(monotonic = true, absolute = true) // <2>
+  @Counted(absolute = true) // <2>
   public JsonObject anyCard() throws InterruptedException {
     return createResponse("Here are some random cards ...");
   }
@@ -518,7 +519,7 @@ public class GreetingCards {
   @Path("/birthday")
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(monotonic = true, absolute = true) // <3>
+  @Counted(absolute = true) // <3>
   public JsonObject birthdayCard() throws InterruptedException {
     return createResponse("Here are some birthday cards ...");
   }
@@ -582,7 +583,7 @@ import org.eclipse.microprofile.metrics.annotation.Metric;
 
 @Path("/cards")
 @RequestScoped
-@Counted(name = "totalCards", monotonic = true)
+@Counted(name = "totalCards")
 public class GreetingCards {
 
   private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
@@ -593,7 +594,7 @@ public class GreetingCards {
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(monotonic = true, absolute = true)
+  @Counted(absolute = true)
   public JsonObject anyCard() throws InterruptedException {
     updateStats(); // <2>
     return createResponse("Here are some random cards ...");
@@ -602,7 +603,7 @@ public class GreetingCards {
   @Path("/birthday")
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(monotonic = true, absolute = true)
+  @Counted(absolute = true)
   public JsonObject birthdayCard() throws InterruptedException {
     updateStats();  // <3>
     return createResponse("Here are some birthday cards ...");
@@ -716,7 +717,7 @@ public class GreetingCards {
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  @Counted(name = "cardCount", absolute = true, monotonic = true)
+  @Counted(name = "cardCount", absolute = true)
   public JsonObject anyCard() throws InterruptedException {
     return createResponse("Here are some random cards ...");
   }
@@ -881,7 +882,7 @@ metrics and scopes.
 
 Refer to the following references for additional information:
 
-* MicroProfile Metrics specification at https://github.com/eclipse/microprofile-metrics/releases/tag/1.1
-* MicroProfile Metrics Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.metrics/microprofile-metrics-api/1.1.1
+* MicroProfile Metrics specification at https://github.com/eclipse/microprofile-metrics/releases/tag/2.0
+* MicroProfile Metrics Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.metrics/microprofile-metrics-api/2.0.0
 * Helidon Javadoc at https://helidon.io/docs/latest/apidocs/index.html?overview-summary.html
 
