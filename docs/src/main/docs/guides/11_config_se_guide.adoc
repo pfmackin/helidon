@@ -79,9 +79,8 @@ The remainder of this document will use these formats in examples and show you h
 
 Helidon has an internal configuration, so you are not required to provide any configure data for your application,
 though in practice you most likely would.  By default, that configuration can be overridden from three sources:
-system properties, environment variables, and  the contents of `application.yaml`.
-For example, if you specify a custom server port in `application.yaml`
-then your server will listen on that port.
+system properties, environment variables, and  the contents of `application.yaml` in the classpath.
+For example, if you specify a custom server port in `application.yaml` then your server will listen on that port.
 
 In your application code, Helidon uses the default configuration when you create a default `Config` object.
 See the following code from the project you created.
@@ -90,10 +89,8 @@ See the following code from the project you created.
 .View `Main.startServer`:
 ----
     static WebServer startServer() throws IOException {
-
 ...
-        // By default this will pick up application.yaml from the classpath
-        Config config = Config.create();
+        Config config = Config.create(); // <1>
 ----
 <1> The `Config` object is created with default settings.
 
@@ -105,7 +102,7 @@ Helidon will use the following sources in precedence order:
 
 1. Environment variables
 2. Java system properties
-3. Properties specified in `application.yaml`
+3. Configuration specified in `application.yaml`
 
 If any of the Helidon required properties are not specified in one of these source, like `server.port`, then Helidon will use a default value.
 
@@ -123,10 +120,10 @@ Change a configuration parameter in the default configuration resource file, `ap
 There are no environment variable or system property overrides defined.
 
 [source,bash]
-.Change `app.greeting` in the application.yaml` from `Hello` to `HelloFromMPConfig`:
+.Change `app.greeting` in `application.yaml` as follows:
 ----
 app:
-  greeting: HelloFromMPConfig
+  greeting: HelloFrom-application.yaml
 ----
 
 [source,bash]
@@ -142,7 +139,7 @@ java -jar target/helidon-quickstart-se.jar
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!" // <1>
+  "message": "HelloFrom-application.yaml World!" // <1>
 }
 ----
 <1> The new `app.greeting` value in `application.yaml` is used.
@@ -192,9 +189,8 @@ curl http://localhost:8080/greet
 
 == Custom configuration sources
 
-To use custom configuration sources, your application needs to use a `Config` object when
-creating a `Server` object.  When you use a `Config` object, you are in full control of
-all configuration sources and precedence. By default, the environment variable and system property
+To use custom configuration sources, your application needs to specify the sources when it creates `Config` object. By doing this,
+you are in full control of all configuration sources and precedence. By default, the environment variable and system property
 sources are enabled, but you can disable them using the `disableEnvironmentVariablesSource` and `disableSystemPropertiesSource`
 methods.
 
@@ -218,8 +214,8 @@ See <<config/06_advanced-configuration.adoc,Advanced Config>> for more informati
 === Classpath sources
 
 The first custom resource example demonstrates how to add a second internal configuration resource that is discovered in the `classpath`.
-The code needs to build a `Config` object, which in turn is used to build the `Server` object.  The `Config` object is built using a `Config.Builder`,
-which lets you inject any number of sources into the builder.  Furthermore, you can set precedence for the sources.
+The code needs to build a `Config` object, which in turn is used to build the `Server` object.  The `Config` object can be built
+using a `Config.Builder`, which lets you inject any number of sources into the builder.  Furthermore, you can set precedence for the sources.
 The first source has highest precedence, then the next has second highest, and so forth.
 
 [source,text]
@@ -229,27 +225,27 @@ app.greeting=HelloFrom-config.properties
 ----
 
 [source,java]
-.Update the `Main` class; 1) Add new imports and 2) Replace the `startServer` method:
+.Update the `Main` class; 1) Add new imports, 2) Replace the `Config.create()` call with `buildConfig()` , 3) Add `buildConfig` method:
 ----
-import io.helidon.config.Config; //<1>
-import static io.helidon.config.ConfigSources.classpath;
+import static io.helidon.config.ConfigSources.classpath; // <1>
 ...
 
-  static Server startServer() {
-    return Server.builder()
-        .config(
-            Config.builder()  //<2>
-                .disableEnvironmentVariablesSource() // <3>
-                .sources(
-                    classpath("config.properties"),  //<4>
-                    classpath("application.yaml"))  //<5>
-                .build())
-        .build()
-        .start();
+    static WebServer startServer() throws IOException {
+...
+        Config config =  buildConfig(); // <2>
+
+
+  private static Config buildConfig() {
+    return Config.builder()
+        .disableEnvironmentVariablesSource() // <3>
+        .sources(
+            classpath("config.properties"), // <4>
+            classpath("application.yaml")) // <5>
+        .build();
   }
 ----
-<1> Import config classes.
-<2> Pass the custom `Config` object to the `Server.Builder`.
+<1> Add new import statement.
+<2> Call the new `buildConfig` method to build a `Config` object.
 <3> Disable the environment variables as a source.
 <4> Specify the new config.properties resource that is in the `classpath`.
 <5> You must specify the existing `application.yaml` or Helidon will not use it as a configuration source
@@ -267,25 +263,21 @@ curl http://localhost:8080/greet
 <1> The greeting was picked up from `config.properties`, overriding the value in `application.yaml`.
 
 NOTE: It is important to remember that configuration from all sources get merged internally.  If you have the same
- configuration property in multiple sources then only the one with highest precedence will be used at runtime.
+configuration property in multiple sources then only the one with highest precedence will be used at runtime.
 This is true even the same property comes from sources with different formats.
 
 Swap the source order and run the test again.
 
 [source,java]
-.Update the `Main` class and replace the `startServer` method:
+.Update the `Main` class and replace the 'buildConfig` method:
 ----
-  static Server startServer() {
-    return Server.builder()
-        .config(
-            Config.builder()
-                .disableEnvironmentVariablesSource()
-                .sources(
-                    classpath("application.yaml"), // <1>
-                    classpath("config.properties"))
-                .build())
-        .build()
-        .start();
+  private static Config buildConfig() {
+      return Config.builder()
+          .disableEnvironmentVariablesSource()
+          .sources(
+              classpath("application.yaml"), // <1>
+              classpath("config.properties"))
+          .build();
   }
 ----
 <1> Swap the source order, putting `application.yaml` first.
@@ -296,7 +288,7 @@ Swap the source order and run the test again.
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!" // <1>
+  "message": "HelloFrom-application.yaml World!" // <1>
 }
 ----
 <1> The file `application.yaml` was used to get the greeting since it now has precedence over `config.properties`.
@@ -316,25 +308,21 @@ unset APP_GREETING
 [source,bash]
 .Create a file named `config-file.properties` in the `helidon-quickstart-se` directory with the following contents:
 ----
-app.greeting=HelloFromConfigFile
+app.greeting=HelloFrom-config-file.properties
 ----
 
 [source,java]
-.Update the `Main` class; 1) Add new import and 2) Replace the `startServer` method:
+.Update the `Main` class; 1) Add new import and 2) Replace the 'buildConfig` method:
 ----
 import static io.helidon.config.ConfigSources.file;
 ...
 
-  static Server startServer() {
-    return Server.builder()
-        .config(
-            Config.builder()
-                .sources(
-                    file("config-file.properties"), // <1>
-                    classpath("application.yaml"))
-                .build())
-        .build()
-        .start();
+  private static Config buildConfig() {
+      return Config.builder()
+          .sources(
+              file("config-file.properties"), // <1>
+              classpath("application.yaml"))
+          .build();
   }
 ----
 <1> Add mandatory configuration file.
@@ -345,7 +333,7 @@ import static io.helidon.config.ConfigSources.file;
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromConfigFile World!"
+  "message": "HelloFrom-config-file.properties World!"
 }
 ----
 <1> The configuration property from the file `config-file.properties` takes precedence.
@@ -355,18 +343,14 @@ otherwise Helidon will generate an error during startup as shown below.  This is
 `classpath` sources.  By default these sources are mandatory.
 
 [source,java]
-.Update the `Main` class and replace the `startServer` method:
+.Update the `Main` class and replace the 'buildConfig` method:
 ----
-  static Server startServer() {
-    return Server.builder()
-        .config(
-            Config.builder()
-                .sources(
-                    file("missing-file"), // <1>
-                    classpath("application.yaml"))
-                .build())
-        .build()
-        .start();
+  private static Config buildConfig() {
+      return Config.builder()
+          .sources(
+              file("missing-file"), // <1>
+              classpath("application.yaml"))
+          .build();
   }
 ----
 <1> Specify a file that doesn't exist.
@@ -398,22 +382,18 @@ HelloFromFileInDirectoryConf
 ----
 
 [source,java]
-.Update the `Main` class; 1) Add new import and 2) Replace the `startServer` method:
+.Update the `Main` class; 1) Add new import and 2) Replace the 'buildConfig` method:
 ----
 import static io.helidon.config.ConfigSources.directory;
 ...
 
-  static Server startServer() {
-    return Server.builder()
-        .config(
-            Config.builder()
-                .sources(
-                    directory("conf"), // <1>
-                    classpath("config.properties").optional(),
-                    classpath("application.yaml"))
-                .build())
-        .build()
-        .start();
+  private static Config buildConfig() {
+      return Config.builder()
+          .sources(
+              directory("conf"), // <1>
+              classpath("config.properties").optional(),
+              classpath("application.yaml"))
+          .build();
   }
 ----
 <1> Add mandatory configuration directory.
@@ -435,23 +415,19 @@ If you have more than three sources, you need to use a `ConfigSources` class to 
 custom source list as shown below.
 
 [source,java]
-.Update the `Main` class; 1) Add new import and 2) Replace the `startServer` method:
+.Update the `Main` class; 1) Add new import and 2) Replace the 'buildConfig` method:
 ----
 import io.helidon.config.ConfigSources;
 ...
 
-  static Server startServer() {
-      return Server.builder()
-          .config(
-              Config.builder()
-                  .sources(ConfigSources.create(   // <1>
-                      directory("conf"),
-                      file("config-file.properties"),
-                      classpath("config.properties").optional(),
-                      classpath("application.yaml")))
-                  .build())
-          .build()
-          .start();
+  private static Config buildConfig() {
+      return Config.builder()
+          .sources(ConfigSources.create(   // <1>
+              directory("conf"),
+              file("config-file.properties"),
+              classpath("config.properties").optional(),
+              classpath("application.yaml")))
+          .build();
   }
 ----
 <1> Create a list of four sources using `ConfigSources.create` method.
@@ -486,14 +462,11 @@ sources:
 
 
 [source,java]
-.Update the `Main` class and replace the `startServer` method:
+.Update the `Main` class and replace the 'buildConfig` method:
 ----
-      static Server startServer() {
-          return Server.builder()
-              .config(Config.loadSourcesFrom( file("meta-config.yaml")))  // <1>
-              .build()
-              .start();
-      }
+  private static Config buildConfig() {
+      return Config.loadSourcesFrom( file("meta-config.yaml")); // <1>
+  }
 ----
 <1> Specify the meta-configuration file, which contains a single configuration source.
 
@@ -503,7 +476,7 @@ sources:
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!" // <1>
+  "message": "HelloFrom-application.yaml World!" // <1>
 }
 ----
 <1> The `application.yaml` resource file was used to get the greeting.
@@ -536,7 +509,7 @@ sources:
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromConfigFile World!" // <1>
+  "message": "HelloFrom-config-file.properties World!" // <1>
 }
 ----
 <1> The `config-file.properties` source now takes precedence.
@@ -567,199 +540,96 @@ the precedence change.  Be sure to unset APP_GREETING after you finish testing.
 == Accessing Config within an application
 
 You have used Helidon to customize configuration behavior from your code using the `Config` and
-`Config.Builder` classes.  The examples in this section will demonstrate how to access that config data
-at runtime.  As discussed previously, Helidon reads configuration from a config source, which uses a config parser
-to translate the source into an in-memory tree which represents the configuration’s structure and values.
-Your application uses the `Config` object to access the in-memory tree, retrieving config data.
-
-An in-memory config tree, once loaded, is immutable, even though the data in the underlying config sources can
-change over time.  Your application can find out metadata about a loaded in-memory config and can track changes
-in config sources
-
-The generated project already accesses configuration data in the `GreetingProvider` class  as  follows:
-
-[source,java]
-.View the following code from `GreetingProvider.java`:
-----
-@ApplicationScoped // <1>
-public class GreetingProvider {
-    private final AtomicReference<String> message = new AtomicReference<>(); // <2>
-
-    @Inject
-    public GreetingProvider(@ConfigProperty(name = "app.greeting") String message) {   // <3>
-        this.message.set(message);
-    }
-
-    String getMessage() {
-        return message.get();
-    }
-
-    void setMessage(String message) {
-        this.message.set(message);
-    }
-}
-----
-<1> This class is application scoped so a single instance of `GreetingProvider` will be shared across the entire application.
-<2> Define a thread safe reference that will refer to the message member variable.
-<3> The value of the configuration property `app.greeting` is injected into the `GreetingProvider`.
-constructor as a `String` parameter named `message`.
-
-
-===== Injecting at field level
-
-You can inject configuration at the field level as shown below.  Use the `volatile` keyword to make
-this field thread safe since you cannot use `AtomicReference` with field level injection.
-
-[source,yaml]
-.Update the  `meta-config.yaml` with the following contents:
-----
-sources:
-  - type: "classpath"
-    properties:
-      resource: "application.yaml"  <1>
-----
-<1> This example only uses the default classpath source.
-
-[source,java]
-.Update the following code from `GreetingProvider.java`:
-----
-@ApplicationScoped
-public class GreetingProvider {
-
-    @Inject
-    @ConfigProperty(name = "app.greeting") // <1>
-    private volatile String message; // <2>
-
-    String getMessage() {
-        return message;
-    }
-
-    void setMessage(String message) {
-        this.message = message;
-    }
-}
-----
-<1> Inject the value of `app.greeting` into the `GreetingProvider` object.
-<2> Define a class member variable to hold the greeting.
-
-[source,bash]
-.Build and run the application, then invoke the endpoint and check the response:
-----
-curl http://localhost:8080/greet
-...
-{
-  "message": "HelloFromMPConfig World!"
-}
-----
-
-===== Injecting the Config object
-
-You can inject the `Config` object into the class and access it directly as shown below.
-This object is not initialized when the `GreetingProvider` constructor is called, so you need to provide
-a method (`onStartup`) that observes `@Initialized` so you know the object is ready for
-use.
-
-[source,java]
-.Update the `GreetingProvider.java` file; 1) Add new imports and 2) Replace the `GreetingProvider` class:
-----
-import io.helidon.config.Config; // <1>
-import javax.enterprise.context.Initialized;
-import javax.enterprise.event.Observes;
-...
-
-@ApplicationScoped
-public class GreetingProvider {
-    private final AtomicReference<String> message = new AtomicReference<>();
-
-    @Inject
-    Config config;  // <2>
-
-    public void onStartUp(@Observes @Initialized(ApplicationScoped.class) Object init) {
-        message.set(config.get("app.greeting").asString().get()); // <3>
-    }
-
-    String getMessage() {
-        return message.get();
-    }
-
-    void setMessage(String message) {
-        this.message.set(message);
-    }
-}
-----
-<1> Add three new imports.
-<2> Inject the `Config` object into the `GreetingProvider` object.
-<3> Get the `app.greeting` value from the `Config` object and set the member variable.
-
-[source,bash]
-.Build and run the application, then invoke the endpoint and check the response:
-----
-curl http://localhost:8080/greet
-...
-{
-  "message": "HelloFromMPConfig World!"
-}
-----
-
-
-===== Navigating the Config tree
-
-Helidon offers a variety of methods to access in-memory configuration.  These can be categorized as _key access_ or _tree navigation_.
+`Config.Builder` classes.  As discussed previously, Helidon reads configuration from a config source, which uses a config parser
+to translate the source into an in-memory tree which represents the configuration’s structure and values.  Helidon offers a variety
+of methods to access in-memory configuration.  These can be categorized as _key access_ or _tree navigation_.
 You have been using _key access_ for all of the examples to this point.  For example `app.greeting` is accessing
 the `greeting` child node of the `app` parent node.  There are many options for access this data using navigation
 methods as described in <<config/03_hierarchical-features.adoc,Hierarchical Config>> and <<config/06_advanced-configuration.adoc,Advanced Config>>.
-This simple example below demonstrates how to access a child node as a detached configuration sub-tree.
 
-[source,yaml]
-.Create a file `config-file.yaml` in the `helidon-quickstart-se` directory and add the following contents:
+
+===== Accessing config using keys or navigation
+
+The simplest way to access configuration data is using a key, as shown below in the `GreetService` class.  The
+key can be composite as shown below:
+
+[source,java]
+.View the `GreetService` constructor:
 ----
-app:
-  greeting:
-    sender: Joe
-    message: Hello-from-config-file.yaml
+    GreetService(Config config) {
+        greeting.set(config.get("app.greeting").asString().orElse("Ciao")); // <1>
+    }
+----
+<1> Get the `'app.greeting` node using a composite key.
+
+You can also access the same greeting by navigating the nodes.
+
+[source,java]
+.Replace `GreetService` constructor with the following code:
+----
+    GreetService(Config config) {
+        greeting.set(config.get("app").get("greeting").asString().orElse("Ciao")); // <1>
+    }
+----
+<1> Get the `'app` node, then get the child node, `greeting`.
+
+[source,bash]
+.Build and run the application, then invoke the endpoint and check the response:
+----
+curl http://localhost:8080/greet
+...
+{
+  "message": "HelloFrom-application.yaml World!"
+}
 ----
 
-[source,yaml]
-.Update the  `meta-config.yaml` with the following contents:
+=== Using filters and collections
+
+The Helidon `Config` class provides several methods that allow you to filter and tailor the traversing of
+configuration trees.  The example below shows how to get the `greeting` node when you only know it is somewhere in
+the `app` subtree.
+
+[source,bash]
+.Replace the contents of the `meta-config.yaml` file:
 ----
 sources:
   - type: "classpath"
     properties:
       resource: "application.yaml"
-  - type: "file"
-    properties:
-      path: "./config-file.yaml"
 ----
+
+[source,bash]
+.Replace the app section of the `application.yaml` resource file:
+----
+app:
+  child1: child1-node
+  child2:
+     child2a:
+        greeting: HelloFrom-application.yaml under child2a
+  child3: child3-node
+----
+
 
 [source,java]
-.Replace `GreetingProvider` class with the following code:
+.Update the `GreetService.java` file; 1) Add new imports and 2) Replace the `GreetService` constructor with the following:
 ----
-@ApplicationScoped
-public class GreetingProvider {
-    private final AtomicReference<String> message = new AtomicReference<>();
-    private final AtomicReference<String> sender = new AtomicReference<>();
+// <1>
+import java.util.List;
+import java.util.stream.Collectors;
 
-    @Inject
-    Config config;
+    GreetService(Config config) {
+        List<Config> appGreetings =  config.get("app")
+            .traverse()  // <2>
+            .filter(node -> node.name().equals("greeting"))
+            .collect(Collectors.toList());
 
-    public void onStartUp(@Observes @Initialized(ApplicationScoped.class) Object init) {
-        Config appNode = config.get("app.greeting"); // <1>
-        message.set(appNode.get("message").asString().get());  // <2>
-        sender.set(appNode.get("sender").asString().get());   // <3>
+        greeting.set(appGreetings.get(0).asString().get());
     }
-
-    String getMessage() {
-        return sender.get() + " says " + message.get();
-    }
-
-    void setMessage(String message) {
-        this.message.set(message);
-    }
-}
 ----
-<1> Get the configuration subtree where the `app.greeting` node is the root.
-<2> Get the value from the `message` `Config` node.
-<3> Get the value from the `sender` `Config` node.
+<1> Add new imports.
+<2> Traverse the entire subtree of the `app` node.
+<3> Remove any node that does not have the name `greeting`.
+<4> Add the `greeting` node to the collection.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -767,9 +637,75 @@ public class GreetingProvider {
 curl http://localhost:8080/greet
 ...
 {
-  "message": "Joe says Hello-from-config-file.yaml World!"
+  "message": "HelloFrom-application.yaml under child2a World!"
 }
 ----
+
+
+=== Reacting to configuration updates
+
+Even though in-memory config trees are immutable, the config system internally records configuration source metadata that
+allows it to watch sources for changes. Your application listen on updates to the underlying config sources and react to the changes.
+See <<config/05_mutability-support, Config Mutability Support>> for a full discussion on this topic.
+The following example demonstates how to listen and react to configuraiton changes.
+
+[source,bash]
+.Replace the contents of the `meta-config.yaml` file:
+----
+sources:
+  - type: "file"
+    properties:
+      path: "./config-file.properties"
+      polling-strategy:
+        type: "watch"
+  - type: "classpath"
+    properties:
+      resource: "application.yaml"
+----
+
+[source,java]
+.Update the `GreetService` class; 1) Add new import and 2) Replace the 'GreetService` constructor:
+----
+import java.util.function.Consumer;
+...
+
+    GreetService(Config config) {
+        Config greetingConfig = config.get("app.greeting");
+        greeting.set(greetingConfig.asString().orElse("Ciao"));
+        greetingConfig.onChange((Consumer<Config>) cfg -> greeting.set(cfg.asString().orElse("Ciao")));
+    }
+----
+
+[source,bash]
+.Build and run the application, then invoke the endpoint and check the response:
+----
+curl http://localhost:8080/greet
+...
+
+{
+  "message": "HelloFrom-config-file.properties World!"
+}
+----
+
+[source,bash]
+.Update `config-file.properties` with the following contents:
+----
+app.greeting=Updated HelloFrom-config-file.properties
+----
+
+
+[source,bash]
+.After a few seconds and check the response:
+----
+curl http://localhost:8080/greet
+...
+
+{
+  "message": "Updated HelloFrom-config-file.properties World!" // <1>
+}
+----
+<1> The application reacted to the change and updated the in memory greeting.
+
 
 == Integration with Kubernetes
 
@@ -778,18 +714,14 @@ When the pod is created, Kubernetes will automatically create a local file withi
 configuration file that is used for the ConfigMap.  This example will create the file at `/etc/config/config-file.properties`.
 
 [source,java]
-.Update the `Main` class and replace the `startServer` method:
+.Update the `Main` class and replace the 'buildConfig` method:
 ----
-  static Server startServer() {
-    return Server.builder()
-        .config(
-            Config.builder()
-                .sources(
-                    file("/etc/config/config-file.properties").optional(), // <1>
-                    classpath("application.yaml")) // <2>
-                .build())
-        .build()
-        .start();
+  private static Config buildConfig() {
+      return Config.builder()
+          .sources(
+              file("/etc/config/config-file.properties").optional(), // <1>
+              classpath("application.yaml")) // <2>
+          .build();
   }
 ----
 <1> The `app.greeting` value will be fetched from `/etc/config/config-file.properties` within the container.
@@ -821,8 +753,7 @@ public class GreetingProvider {
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromConfigFile World!"
-}
+  "message": "HelloFrom-config-file.properties World!"
 ----
 
 [source,bash]
@@ -845,7 +776,7 @@ kubectl get configmap helidon-configmap -o yaml
 apiVersion: v1
 data:
   config-file.properties: |   // <1>
-    app.greeting=HelloFromConfigFile   // <2>
+    app.greeting=HelloFrom-config-file.properties   // <2>
 kind: ConfigMap
 ...
 ----
@@ -930,7 +861,7 @@ helidon-config   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // <
 curl http://localhost:31143/greet
 ...
 {
-  "message": "HelloFromConfigFile World!" // <1>
+  "message": "HelloFrom-config-file.properties World!" // <1>
 }
 ----
 <1> The greeting value from `/etc/config/config-file.properties` within the container was used.
@@ -966,7 +897,4 @@ Refer to the following references for additional information:
 - MicroProfile Config specification at https://github.com/eclipse/microprofile-config/releases/tag/1.3
 - MicroProfile Config Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.config/microprofile-config-api/1.3
 - Helidon Javadoc at https://helidon.io/docs/latest/apidocs/index.html?overview-summary.html
-
-
-
 
