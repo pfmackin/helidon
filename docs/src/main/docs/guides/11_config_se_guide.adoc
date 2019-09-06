@@ -560,7 +560,7 @@ key can be composite as shown below:
         greeting.set(config.get("app.greeting").asString().orElse("Ciao")); // <1>
     }
 ----
-<1> Get the `'app.greeting` node using a composite key.
+<1> Get the `app.greeting` node using a composite key.
 
 You can also access the same greeting by navigating the nodes.
 
@@ -571,7 +571,7 @@ You can also access the same greeting by navigating the nodes.
         greeting.set(config.get("app").get("greeting").asString().orElse("Ciao")); // <1>
     }
 ----
-<1> Get the `'app` node, then get the child node, `greeting`.
+<1> Get the `app` node, then get the child node, `greeting`.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -585,8 +585,8 @@ curl http://localhost:8080/greet
 
 === Using filters and collections
 
-The Helidon `Config` class provides several methods that allow you to filter and customize the traversal of
-configuration trees.  The example below shows how to get the `greeting` node when you only know it is somewhere in
+The Helidon `Config` class provides several methods that allow you to filter and customize the traversal of the
+configuration tree.  The example below shows how to get the `greeting` node when you only know it is somewhere in
 the `app` subtree.
 
 [source,bash]
@@ -717,6 +717,13 @@ The following example uses a Kubernetes ConfigMap to pass the configuration data
 When the pod is created, Kubernetes will automatically create a local file within the container that has the contents of the
 configuration file that is used for the ConfigMap.  This example will create the file at `/etc/config/config-file.properties`.
 
+[source,bash]
+.Replace the app section of the `application.yaml` resource file:
+----
+app:
+  greeting: "Hello"
+----
+
 [source,java]
 .Update the `Main` class and replace the `buildConfig` method:
 ----
@@ -732,23 +739,11 @@ configuration file that is used for the ConfigMap.  This example will create the
 <2> The server port is specified in `application.yaml` within the `helidon-quickstart-se.jar`.
 
 [source,java]
-.Update the following code from `GreetingProvider.java`:
+.Replace the `GreetService` constructor with the following code:
 ----
-@ApplicationScoped
-public class GreetingProvider {
-
-    @Inject
-    @ConfigProperty(name = "app.greeting") // <1>
-    private volatile String message; // <2>
-
-    String getMessage() {
-        return message;
+    GreetService(Config config) {
+        greeting.set(config.get("app.greeting").asString().orElse("Ciao"));
     }
-
-    void setMessage(String message) {
-        this.message = message;
-    }
-}
 ----
 
 [source,bash]
@@ -757,8 +752,10 @@ public class GreetingProvider {
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFrom-config-file.properties World!"
+  "message": "Hello World!" // <1>
+}
 ----
+<1> The greeting came from `application.yaml` since `/etc/config/config-file.properties` doesn't exist.
 
 [source,bash]
 .Stop the application and build the docker image:
@@ -780,7 +777,7 @@ kubectl get configmap helidon-configmap -o yaml
 apiVersion: v1
 data:
   config-file.properties: |   // <1>
-    app.greeting=HelloFrom-config-file.properties   // <2>
+    app.greeting=Updated HelloFrom-config-file.properties   // <2>
 kind: ConfigMap
 ...
 ----
@@ -865,7 +862,7 @@ helidon-config   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // <
 curl http://localhost:31143/greet
 ...
 {
-  "message": "HelloFrom-config-file.properties World!" // <1>
+  "message": "Updated HelloFrom-config-file.properties World!" // <1>
 }
 ----
 <1> The greeting value from `/etc/config/config-file.properties` within the container was used.
@@ -898,7 +895,5 @@ the following:
 
 Refer to the following references for additional information:
 
-- MicroProfile Config specification at https://github.com/eclipse/microprofile-config/releases/tag/1.3
-- MicroProfile Config Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.config/microprofile-config-api/1.3
 - Helidon Javadoc at https://helidon.io/docs/latest/apidocs/index.html?overview-summary.html
 
