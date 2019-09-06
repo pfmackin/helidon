@@ -81,6 +81,13 @@ Learn how to use Helidon SE built-in and custom health checks.
 --
 
 [CARD]
+.SE Health Check Guide
+[link=guides/07_health_se_guide.adoc]
+--
+Learn how to use Helidon SE built-in and custom health checks.
+--
+
+[CARD]
 .Build Native Images with GraalVM
 [link=guides/15_graalnative.adoc]
 --
