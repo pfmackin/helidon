@@ -16,13 +16,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-= Config MP Guide
-:description: Helidon configuration
-:keywords: helidon, configuration, microprofile, guide
+= Tracing MP Guide
+:description: Helidon tracing
+:keywords: helidon, tracing, microprofile, guide
 :toc:
 
 This guide describes how to create a sample MicroProfile (MP) project
-that can be used to run some basic examples using both default and custom configuration with Helidon MP.
+that can be used to run some basic examples using tracing with Helidon MP.
 
 == What you need
 
@@ -32,13 +32,13 @@ that can be used to run some basic examples using both default and custom config
 |<<about/03_prerequisites.adoc,Helidon Prerequisites>>
 |===
 
-== Getting started with configuration
+== Getting started with tracing
 
-Helidon provides a very flexible and comprehensive configuration system, offering you many application configuration choices.
-You can include configuration data from a variety of sources using different formats, like JSON and YAML.
+Helidon provides a very flexible and comprehensive tracing system, offering you many application tracing choices.
+You can include tracing data from a variety of sources using different formats, like JSON and YAML.
 Furthermore, you can customize the precedence of sources and make them optional or mandatory.
-This guide introduces Helidon MP configuration and demonstrates the fundamental concepts using several examples.
-Refer to <<config/01_introduction.adoc, Helidon Config>> for the full configuration concepts documentation.
+This guide introduces Helidon MP tracing and demonstrates the fundamental concepts using several examples.
+Refer to <<tracing/01_introduction.adoc, Helidon Tracing>> for the full tracing concepts documentation.
 
 === Create a sample Helidon MP project
 
@@ -62,9 +62,9 @@ mvn archetype:generate -DinteractiveMode=false \
 cd helidon-quickstart-mp
 ----
 
-=== Configuration Formats
+=== tracing Formats
 
-Helidon configuration sources can use different formats for the configuration data. You can specify the
+Helidon tracing sources can use different formats for the tracing data. You can specify the
 format on a per-source bases, mixing and matching formats as required.  Here are the supported formats,
 each with the extension name you should use. By default, Helidon will determine the media type based on the extension name.
 
@@ -73,17 +73,17 @@ each with the extension name you should use. By default, Helidon will determine 
 * YAML (.yaml)
 * HOCON (.conf)
 
-The remainder of this document will use these formats in examples and show you how to configure Helidon to parse them.
+The remainder of this document will use these formats in examples and show you how to tracingure Helidon to parse them.
 
-=== Default configuration
+=== Default tracing
 
-Helidon has an internal configuration, so you are not required to provide any configure data for your application,
-though in practice you most likely would.  By default, that configuration can be overridden from three sources:
-system properties, environment variables, and  the contents of `META-INF/microprofile-config.properties`.
-For example, if you specify a custom server port in `META-INF/microprofile-config.properties`
+Helidon has an internal tracing, so you are not required to provide any tracingure data for your application,
+though in practice you most likely would.  By default, that tracing can be overridden from three sources:
+system properties, environment variables, and  the contents of `META-INF/microprofile-tracing.properties`.
+For example, if you specify a custom server port in `META-INF/microprofile-tracing.properties`
 then your server will listen on that port.
 
-In your application code, Helidon uses the default configuration when you create a `Server` object without a custom `Config` object.
+In your application code, Helidon uses the default tracing when you create a `Server` object without a custom `Tracing` object.
 See the following code from the project you created.
 
 [source,Java]
@@ -93,38 +93,38 @@ See the following code from the project you created.
         return Server.create().start(); // <1>
     }
 ----
-<1> There are no `Config` object being used during server creation, so the default configuration is used.
+<1> There are no `Tracing` object being used during server creation, so the default tracing is used.
 
-=== Source precedence for default configuration
+=== Source precedence for default tracing
 
-In order to properly configure your application using configuration sources, you need to understand
-the precedence rules that Helidon uses to merge your configuration data.  By default,
+In order to properly tracingure your application using tracing sources, you need to understand
+the precedence rules that Helidon uses to merge your tracing data.  By default,
 Helidon will use the following sources in precedence order:
 
 1. Java system properties
 2. Environment variables
-3. Properties specified in `META-INF/microprofile-config.properties`
+3. Properties specified in `META-INF/microprofile-tracing.properties`
 
-Each of these sources specify configuration properties in Java Property format (key/value), like `color=red`. If any of the Helidon
+Each of these sources specify tracing properties in Java Property format (key/value), like `color=red`. If any of the Helidon
 required properties are not specified in one of these source, like `server.port`, then Helidon will use a default value.
 
 NOTE: Because environment variable names are restricted to alphanumeric characters and underscore,
-Helidon adds aliases to the environment configuration source, allowing entries with dotted and/or
+Helidon adds aliases to the environment tracing source, allowing entries with dotted and/or
 hyphenated keys to be overriden.  For example, this mapping allows an environment variable named "APP_GREETING" to override
 an entry key named "app.greeting".  In the same way, an environment variable named "APP_dash_GREETING" will map to
-"app-greeting".  See <<config/06_advanced-configuration.adoc,Advanced Config>> for more information.
+"app-greeting".  See <<tracing/06_advanced-tracing.adoc,Advanced Tracing>> for more information.
 
 The following examples will demonstrate this precedence order.
 
-==== Default configuration resource
+==== Default tracing resource
 
-Change a configuration parameter in the default configuration resource file, `META-INF/microprofile-config.properties`.
+Change a tracing parameter in the default tracing resource file, `META-INF/microprofile-tracing.properties`.
 There are no environment variable or system property overrides defined.
 
 [source,bash]
-.Change `app.greeting` in the META-INF/microprofile-config.properties` from `Hello` to `HelloFromMPConfig`:
+.Change `app.greeting` in the META-INF/microprofile-tracing.properties` from `Hello` to `HelloFromMPTracing`:
 ----
-app.greeting=HelloFromMPConfig
+app.greeting=HelloFromMPTracing
 ----
 
 [source,bash]
@@ -140,14 +140,14 @@ java -jar target/helidon-quickstart-mp.jar
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!" // <1>
+  "message": "HelloFromMPTracing World!" // <1>
 }
 ----
-<1> The new `app.greeting` value in `META-INF/microprofile-config.properties` is used.
+<1> The new `app.greeting` value in `META-INF/microprofile-tracing.properties` is used.
 
 ===== Environment variable override
 
-An environment variable has a higher precedence than the configuration properties file.
+An environment variable has a higher precedence than the tracing properties file.
 
 [source,bash]
 .Set the environment variable and restart the application:
@@ -165,7 +165,7 @@ curl http://localhost:8080/greet
   "message": "HelloFromEnvironment World!" // <1>
 }
 ----
-<1> The environment variable took precedence over the value in `META-INF/microprofile-config.properties`.
+<1> The environment variable took precedence over the value in `META-INF/microprofile-tracing.properties`.
 
 ===== System property override
 
@@ -186,74 +186,74 @@ curl http://localhost:8080/greet
   "message": "HelloFromSystemProperty World!" // <1>
 }
 ----
-<1> The system property took precedence over both the environment variable and `META-INF/microprofile-config.properties`.
+<1> The system property took precedence over both the environment variable and `META-INF/microprofile-tracing.properties`.
 
-== Custom configuration sources
+== Custom tracing sources
 
-To use custom configuration sources, your application needs to use a `Config` object when
-creating a `Server` object.  When you use a `Config` object, you are in full control of
-all configuration sources and precedence. By default, the environment variable and system property
+To use custom tracing sources, your application needs to use a `Tracing` object when
+creating a `Server` object.  When you use a `Tracing` object, you are in full control of
+all tracing sources and precedence. By default, the environment variable and system property
 sources are enabled, but you can disable them using the `disableEnvironmentVariablesSource` and `disableSystemPropertiesSource`
 methods.
 
-This section will show you how to use a custom configuration with various sources, formats, and precedence rules.
+This section will show you how to use a custom tracing with various sources, formats, and precedence rules.
 
-=== Full list of configuration sources
+=== Full list of tracing sources
 
-Here is the full list of external config sources that use can use programmatically.
+Here is the full list of external tracing sources that use can use programmatically.
 
 1. Java system properties - the property is a name/value pair.
 2. Environment variables - the property is a name/value pair.
 3. Resources in the classpath - the contents of the resource is parsed according to its inferred format.
 4. File - the contents of the file is parsed according to its inferred format.
-5. Directory - each non-directory file in the directory becomes a config entry: the file name is the key.
-and the contents of that file are used as the corresponding config String value.
+5. Directory - each non-directory file in the directory becomes a tracing entry: the file name is the key.
+and the contents of that file are used as the corresponding tracing String value.
 6. A URL resource - contents is parsed according to its inferred format.
 
 You can also define custom sources, such as Git, and use them in your Helidon application.
-See <<config/06_advanced-configuration.adoc,Advanced Config>> for more information.
+See <<tracing/06_advanced-tracing.adoc,Advanced Tracing>> for more information.
 
 === Classpath sources
 
-The first custom resource example demonstrates how to add a second internal configuration resource that is discovered in the `classpath`.
-The code needs to build a `Config` object, which in turn is used to build the `Server` object.  The `Config` object is built using a `Config.Builder`,
+The first custom resource example demonstrates how to add a second internal tracing resource that is discovered in the `classpath`.
+The code needs to build a `Tracing` object, which in turn is used to build the `Server` object.  The `Tracing` object is built using a `Tracing.Builder`,
 which lets you inject any number of sources into the builder.  Furthermore, you can set precedence for the sources.
 The first source has highest precedence, then the next has second highest, and so forth.
 
 [source,text]
-.Add a resource file, named `config.properties` to the `resources` directory with the following contents:
+.Add a resource file, named `tracing.properties` to the `resources` directory with the following contents:
 ----
-app.greeting=HelloFrom-config.properties
+app.greeting=HelloFrom-tracing.properties
 ----
 
 [source,java]
-.Update the `Main` class; 1) Add new imports, 2) Replace the `startServer` method, 3) Add `buildConfig` method:
+.Update the `Main` class; 1) Add new imports, 2) Replace the `startServer` method, 3) Add `buildTracing` method:
 ----
-import io.helidon.config.Config; //<1>
-import static io.helidon.config.ConfigSources.classpath;
+import io.helidon.tracing.Tracing; //<1>
+import static io.helidon.tracing.TracingSources.classpath;
 ...
 
   static Server startServer() {
         return Server.builder()
-            .config(buildConfig()) // <2>
+            .tracing(buildTracing()) // <2>
             .build()
             .start();
     }
 
-  private static Config buildConfig() {
-    return Config.builder()
+  private static Tracing buildTracing() {
+    return Tracing.builder()
         .disableEnvironmentVariablesSource() // <3>
         .sources(
-            classpath("config.properties"), // <4>
-            classpath("META-INF/microprofile-config.properties")) // <5>
+            classpath("tracing.properties"), // <4>
+            classpath("META-INF/microprofile-tracing.properties")) // <5>
         .build();
   }
 ----
-<1> Import config classes.
-<2> Pass the custom `Config` object to the `Server.Builder`.
+<1> Import tracing classes.
+<2> Pass the custom `Tracing` object to the `Server.Builder`.
 <3> Disable the environment variables as a source.
-<4> Specify the new config.properties resource that is in the `classpath`.
-<5> You must specify the existing `META-INF/microprofile-config.properties` or Helidon will not use it as a configuration source
+<4> Specify the new tracing.properties resource that is in the `classpath`.
+<5> You must specify the existing `META-INF/microprofile-tracing.properties` or Helidon will not use it as a tracing source
 even though it is considered a default source.
 
 [source,bash]
@@ -262,30 +262,30 @@ even though it is considered a default source.
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFrom-config.properties World!"
+  "message": "HelloFrom-tracing.properties World!"
 }
 ----
-<1> The greeting was picked up from `config.properties`, overriding the value in `META-INF/microprofile-config.properties`.
+<1> The greeting was picked up from `tracing.properties`, overriding the value in `META-INF/microprofile-tracing.properties`.
 
-NOTE: It is important to remember that configuration from all sources get merged internally.  If you have the same
- configuration property in multiple sources then only the one with highest precedence will be used at runtime.
+NOTE: It is important to remember that tracing from all sources get merged internally.  If you have the same
+ tracing property in multiple sources then only the one with highest precedence will be used at runtime.
 This is true even the same property comes from sources with different formats.
 
 Swap the source order and run the test again.
 
 [source,java]
-.Update the `Main` class and replace the 'buildConfig` method:
+.Update the `Main` class and replace the 'buildTracing` method:
 ----
-  private static Config buildConfig() {
-      return Config.builder()
+  private static Tracing buildTracing() {
+      return Tracing.builder()
           .disableEnvironmentVariablesSource()
           .sources(
-              classpath("META-INF/microprofile-config.properties"), // <1>
-              classpath("config.properties"))
+              classpath("META-INF/microprofile-tracing.properties"), // <1>
+              classpath("tracing.properties"))
           .build();
   }
 ----
-<1> Swap the source order, putting `META-INF/microprofile-config.properties` first.
+<1> Swap the source order, putting `META-INF/microprofile-tracing.properties` first.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -293,16 +293,16 @@ Swap the source order and run the test again.
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!" // <1>
+  "message": "HelloFromMPTracing World!" // <1>
 }
 ----
-<1> The file `META-INF/microprofile-config.properties` was used to get the greeting since it now has precedence over `config.properties`.
+<1> The file `META-INF/microprofile-tracing.properties` was used to get the greeting since it now has precedence over `tracing.properties`.
 
 === External file sources
 
-You can move all or part of your configuration to external files, making them optional or mandatory.  The obvious advantage to this
-approach is that you do not need to rebuild your application to change configuration.  In the following
-example, the `app.greeting` configuration property will be added to `config-file.properties`.
+You can move all or part of your tracing to external files, making them optional or mandatory.  The obvious advantage to this
+approach is that you do not need to rebuild your application to change tracing.  In the following
+example, the `app.greeting` tracing property will be added to `tracing-file.properties`.
 
 [source,bash]
 .Unset the environment variable so that `disableEnvironmentVariablesSource` doesn't need to be called:
@@ -311,26 +311,26 @@ unset APP_GREETING
 ----
 
 [source,bash]
-.Create a file named `config-file.properties` in the `helidon-quickstart-mp` directory with the following contents:
+.Create a file named `tracing-file.properties` in the `helidon-quickstart-mp` directory with the following contents:
 ----
-app.greeting=HelloFromConfigFile
+app.greeting=HelloFromTracingFile
 ----
 
 [source,java]
-.Update the `Main` class; 1) Add new import and 2) Replace the 'buildConfig` method:
+.Update the `Main` class; 1) Add new import and 2) Replace the 'buildTracing` method:
 ----
-import static io.helidon.config.ConfigSources.file;
+import static io.helidon.tracing.TracingSources.file;
 ...
 
-  private static Config buildConfig() {
-      return Config.builder()
+  private static Tracing buildTracing() {
+      return Tracing.builder()
           .sources(
-              file("config-file.properties"), // <1>
-              classpath("META-INF/microprofile-config.properties"))
+              file("tracing-file.properties"), // <1>
+              classpath("META-INF/microprofile-tracing.properties"))
           .build();
   }
 ----
-<1> Add mandatory configuration file.
+<1> Add mandatory tracing file.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -338,23 +338,23 @@ import static io.helidon.config.ConfigSources.file;
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromConfigFile World!"
+  "message": "HelloFromTracingFile World!"
 }
 ----
-<1> The configuration property from the file `config-file.properties` takes precedence.
+<1> The tracing property from the file `tracing-file.properties` takes precedence.
 
-NOTE: If you want the configuration file to be optional, you must use the `optional` method with `sources`,
+NOTE: If you want the tracing file to be optional, you must use the `optional` method with `sources`,
 otherwise Helidon will generate an error during startup as shown below.  This is true for both `file` and
 `classpath` sources.  By default these sources are mandatory.
 
 [source,java]
-.Update the `Main` class and replace the 'buildConfig` method:
+.Update the `Main` class and replace the 'buildTracing` method:
 ----
-  private static Config buildConfig() {
-      return Config.builder()
+  private static Tracing buildTracing() {
+      return Tracing.builder()
           .sources(
               file("missing-file"), // <1>
-              classpath("META-INF/microprofile-config.properties"))
+              classpath("META-INF/microprofile-tracing.properties"))
           .build();
   }
 ----
@@ -363,7 +363,7 @@ otherwise Helidon will generate an error during startup as shown below.  This is
 [source,bash]
 .Build then start the application and you will see the following output:
 ----
-Exception in thread "main" io.helidon.config.ConfigException: Cannot load data from mandatory source FileConfig[missing-file]. File `missing-file` not found.
+Exception in thread "main" io.helidon.tracing.TracingException: Cannot load data from mandatory source FileTracing[missing-file]. File `missing-file` not found.
 ----
 
 To fix this, use the `optional` method as shown below, then rerun the test.
@@ -373,7 +373,7 @@ To fix this, use the `optional` method as shown below, then rerun the test.
     file("missing-file").optional(), // <1>
 
 ----
-<1> The `missing-file` configuration file is now optional.
+<1> The `missing-file` tracing file is now optional.
 
 === Directory source
 
@@ -387,21 +387,21 @@ HelloFromFileInDirectoryConf
 ----
 
 [source,java]
-.Update the `Main` class; 1) Add new import and 2) Replace the 'buildConfig` method:
+.Update the `Main` class; 1) Add new import and 2) Replace the 'buildTracing` method:
 ----
-import static io.helidon.config.ConfigSources.directory;
+import static io.helidon.tracing.TracingSources.directory;
 ...
 
-  private static Config buildConfig() {
-      return Config.builder()
+  private static Tracing buildTracing() {
+      return Tracing.builder()
           .sources(
               directory("conf"), // <1>
-              classpath("config.properties").optional(),
-              classpath("META-INF/microprofile-config.properties"))
+              classpath("tracing.properties").optional(),
+              classpath("META-INF/microprofile-tracing.properties"))
           .build();
   }
 ----
-<1> Add mandatory configuration directory.
+<1> Add mandatory tracing directory.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -416,26 +416,26 @@ curl http://localhost:8080/greet
 
 ==== Exceeding three sources
 
-If you have more than three sources, you need to use a `ConfigSources` class to create a
+If you have more than three sources, you need to use a `TracingSources` class to create a
 custom source list as shown below.
 
 [source,java]
-.Update the `Main` class; 1) Add new import and 2) Replace the 'buildConfig` method:
+.Update the `Main` class; 1) Add new import and 2) Replace the 'buildTracing` method:
 ----
-import io.helidon.config.ConfigSources;
+import io.helidon.tracing.TracingSources;
 ...
 
-  private static Config buildConfig() {
-      return Config.builder()
-          .sources(ConfigSources.create(   // <1>
+  private static Tracing buildTracing() {
+      return Tracing.builder()
+          .sources(TracingSources.create(   // <1>
               directory("conf"),
-              file("config-file.properties"),
-              classpath("config.properties").optional(),
-              classpath("META-INF/microprofile-config.properties")))
+              file("tracing-file.properties"),
+              classpath("tracing.properties").optional(),
+              classpath("META-INF/microprofile-tracing.properties")))
           .build();
   }
 ----
-<1> Create a list of four sources using `ConfigSources.create` method.
+<1> Create a list of four sources using `TracingSources.create` method.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -448,32 +448,32 @@ curl http://localhost:8080/greet
 }
 ----
 
-=== Meta-configuration
+=== Meta-tracing
 
-Instead of directly specifying the configuration sources in your code, you can use meta-configuration in a file that declares
-the configuration sources and their attributes. This requires using the `Config.loadSourcesFrom` method rather than a `Config.Buider`
-object. The contents of the meta-configuration file needs to be in JSON, YAML, or HOCON format. YAML is used in the following example.
+Instead of directly specifying the tracing sources in your code, you can use meta-tracing in a file that declares
+the tracing sources and their attributes. This requires using the `Tracing.loadSourcesFrom` method rather than a `Tracing.Buider`
+object. The contents of the meta-tracing file needs to be in JSON, YAML, or HOCON format. YAML is used in the following example.
 
 [source,bash]
-.Create a file named `meta-config.yaml` in the `helidon-quickstart-mp` directory with the following contents:
+.Create a file named `meta-tracing.yaml` in the `helidon-quickstart-mp` directory with the following contents:
 ----
 sources:
   - type: "classpath" // <1>
     properties:
-      resource: "META-INF/microprofile-config.properties" // <2>
+      resource: "META-INF/microprofile-tracing.properties" // <2>
 ----
 <1> The source type.
-<2> The name of the mandatory configuration resource.
+<2> The name of the mandatory tracing resource.
 
 
 [source,java]
-.Update the `Main` class and replace the 'buildConfig` method:
+.Update the `Main` class and replace the 'buildTracing` method:
 ----
-  private static Config buildConfig() {
-      return Config.loadSourcesFrom( file("meta-config.yaml")); // <1>
+  private static Tracing buildTracing() {
+      return Tracing.loadSourcesFrom( file("meta-tracing.yaml")); // <1>
   }
 ----
-<1> Specify the meta-configuration file, which contains a single configuration source.
+<1> Specify the meta-tracing file, which contains a single tracing source.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -481,32 +481,32 @@ sources:
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!" // <1>
+  "message": "HelloFromMPTracing World!" // <1>
 }
 ----
-<1> The `META-INF/microprofile-config.properties` resource file was used to get the greeting.
+<1> The `META-INF/microprofile-tracing.properties` resource file was used to get the greeting.
 
-The source precedence order in a meta-configuration file is the order of appearance in the file.
-This is demonstrated below where the `config-file.properties` has highest precedence.
+The source precedence order in a meta-tracing file is the order of appearance in the file.
+This is demonstrated below where the `tracing-file.properties` has highest precedence.
 
 [source,bash]
-.Replace the contents of the `meta-config.yaml` file:
+.Replace the contents of the `meta-tracing.yaml` file:
 ----
 sources:
   - type: "file" // <1>
     properties:
-      path: "./config-file.properties" // <2>
+      path: "./tracing-file.properties" // <2>
   - type: "classpath"
     properties:
-      resource: "META-INF/microprofile-config.properties"
+      resource: "META-INF/microprofile-tracing.properties"
   - type: "file"
     properties:
-      path: "optional-config-file"
+      path: "optional-tracing-file"
       optional: true  // <3>
 ----
 <1> The source type specifies a file.
-<2> The name of the mandatory configuration file.
-<3> Specify that the `optional-config-file` file is optional.
+<2> The name of the mandatory tracing file.
+<3> Specify that the `optional-tracing-file` file is optional.
 
 [source,bash]
 .Restart the application, then invoke the endpoint below and check the response:
@@ -514,26 +514,26 @@ sources:
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromConfigFile World!" // <1>
+  "message": "HelloFromTracingFile World!" // <1>
 }
 ----
-<1> The `config-file.properties` source now takes precedence.
+<1> The `tracing-file.properties` source now takes precedence.
 
-When using a meta-config file, you need to explicitly include both environment variables and system properties as
+When using a meta-tracing file, you need to explicitly include both environment variables and system properties as
 a source if you want to use them.
 
 [source,bash]
-.Replace the contents of the `meta-config.yaml` file:
+.Replace the contents of the `meta-tracing.yaml` file:
 ----
 sources:
   - type: "environment-variables" // <1>
   - type: "system-properties" // <2>
   - type: "classpath"
     properties:
-      resource: "META-INF/microprofile-config.properties"
+      resource: "META-INF/microprofile-tracing.properties"
   - type: "file"
     properties:
-      path: "./config-file.properties"
+      path: "./tracing-file.properties"
 ----
 <1> Environment variables are now used as a source.
 <2> System properties are now used as a source.
@@ -542,19 +542,19 @@ sources:
 You can re-run the previous tests that exercised environment variables and system properties.  Swap the two types to see
 the precedence change.  Be sure to unset APP_GREETING after you finish testing.
 
-== Accessing Config within an application
+== Accessing Tracing within an application
 
-You have used Helidon to customize configuration behavior from your code using the `Config` and
-`Config.Builder` classes.  The examples in this section will demonstrate how to access that config data
-at runtime.  As discussed previously, Helidon reads configuration from a config source, which uses a config parser
-to translate the source into an in-memory tree which represents the configuration’s structure and values.
-Your application uses the `Config` object to access the in-memory tree, retrieving config data.
+You have used Helidon to customize tracing behavior from your code using the `Tracing` and
+`Tracing.Builder` classes.  The examples in this section will demonstrate how to access that tracing data
+at runtime.  As discussed previously, Helidon reads tracing from a tracing source, which uses a tracing parser
+to translate the source into an in-memory tree which represents the tracing’s structure and values.
+Your application uses the `Tracing` object to access the in-memory tree, retrieving tracing data.
 
-An in-memory config tree, once loaded, is immutable, even though the data in the underlying config sources can
-change over time.  Your application can find out metadata about a loaded in-memory config and can track changes
-in config sources
+An in-memory tracing tree, once loaded, is immutable, even though the data in the underlying tracing sources can
+change over time.  Your application can find out metadata about a loaded in-memory tracing and can track changes
+in tracing sources
 
-The generated project already accesses configuration data in the `GreetingProvider` class  as  follows:
+The generated project already accesses tracing data in the `GreetingProvider` class  as  follows:
 
 [source,java]
 .View the following code from `GreetingProvider.java`:
@@ -564,7 +564,7 @@ public class GreetingProvider {
     private final AtomicReference<String> message = new AtomicReference<>(); // <2>
 
     @Inject
-    public GreetingProvider(@ConfigProperty(name = "app.greeting") String message) {   // <3>
+    public GreetingProvider(@TracingProperty(name = "app.greeting") String message) {   // <3>
         this.message.set(message);
     }
 
@@ -579,22 +579,22 @@ public class GreetingProvider {
 ----
 <1> This class is application scoped so a single instance of `GreetingProvider` will be shared across the entire application.
 <2> Define a thread safe reference that will refer to the message member variable.
-<3> The value of the configuration property `app.greeting` is injected into the `GreetingProvider`.
+<3> The value of the tracing property `app.greeting` is injected into the `GreetingProvider`.
 constructor as a `String` parameter named `message`.
 
 
 ===== Injecting at field level
 
-You can inject configuration at the field level as shown below.  Use the `volatile` keyword to make
+You can inject tracing at the field level as shown below.  Use the `volatile` keyword to make
 this field thread safe since you cannot use `AtomicReference` with field level injection.
 
 [source,yaml]
-.Update the  `meta-config.yaml` with the following contents:
+.Update the  `meta-tracing.yaml` with the following contents:
 ----
 sources:
   - type: "classpath"
     properties:
-      resource: "META-INF/microprofile-config.properties"  <1>
+      resource: "META-INF/microprofile-tracing.properties"  <1>
 ----
 <1> This example only uses the default classpath source.
 
@@ -605,7 +605,7 @@ sources:
 public class GreetingProvider {
 
     @Inject
-    @ConfigProperty(name = "app.greeting") // <1>
+    @TracingProperty(name = "app.greeting") // <1>
     private volatile String message; // <2>
 
     String getMessage() {
@@ -626,13 +626,13 @@ public class GreetingProvider {
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!"
+  "message": "HelloFromMPTracing World!"
 }
 ----
 
-===== Injecting the Config object
+===== Injecting the Tracing object
 
-You can inject the `Config` object into the class and access it directly as shown below.
+You can inject the `Tracing` object into the class and access it directly as shown below.
 This object is not initialized when the `GreetingProvider` constructor is called, so you need to provide
 a method (`onStartup`) that observes `@Initialized` so you know the object is ready for
 use.
@@ -641,7 +641,7 @@ use.
 .Update the `GreetingProvider.java` file; 1) Add new imports and 2) Replace the `GreetingProvider` class:
 ----
  // <1>
-import io.helidon.config.Config;
+import io.helidon.tracing.Tracing;
 import javax.enterprise.context.Initialized;
 import javax.enterprise.event.Observes;
 ...
@@ -651,10 +651,10 @@ public class GreetingProvider {
     private final AtomicReference<String> message = new AtomicReference<>();
 
     @Inject
-    Config config;  // <2>
+    Tracing tracing;  // <2>
 
     public void onStartUp(@Observes @Initialized(ApplicationScoped.class) Object init) {
-        message.set(config.get("app.greeting").asString().get()); // <3>
+        message.set(tracing.get("app.greeting").asString().get()); // <3>
     }
 
     String getMessage() {
@@ -667,8 +667,8 @@ public class GreetingProvider {
 }
 ----
 <1> Add three new imports.
-<2> Inject the `Config` object into the `GreetingProvider` object.
-<3> Get the `app.greeting` value from the `Config` object and set the member variable.
+<2> Inject the `Tracing` object into the `GreetingProvider` object.
+<3> Get the `app.greeting` value from the `Tracing` object and set the member variable.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -676,38 +676,38 @@ public class GreetingProvider {
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPConfig World!"
+  "message": "HelloFromMPTracing World!"
 }
 ----
 
 
-===== Navigating the Config tree
+===== Navigating the Tracing tree
 
-Helidon offers a variety of methods to access in-memory configuration.  These can be categorized as _key access_ or _tree navigation_.
+Helidon offers a variety of methods to access in-memory tracing.  These can be categorized as _key access_ or _tree navigation_.
 You have been using _key access_ for all of the examples to this point.  For example `app.greeting` is accessing
 the `greeting` child node of the `app` parent node.  There are many options for access this data using navigation
-methods as described in <<config/03_hierarchical-features.adoc,Hierarchical Config>> and <<config/06_advanced-configuration.adoc,Advanced Config>>.
-This simple example below demonstrates how to access a child node as a detached configuration sub-tree.
+methods as described in <<tracing/03_hierarchical-features.adoc,Hierarchical Tracing>> and <<tracing/06_advanced-tracing.adoc,Advanced Tracing>>.
+This simple example below demonstrates how to access a child node as a detached tracing sub-tree.
 
 [source,yaml]
-.Create a file `config-file.yaml` in the `helidon-quickstart-mp` directory and add the following contents:
+.Create a file `tracing-file.yaml` in the `helidon-quickstart-mp` directory and add the following contents:
 ----
 app:
   greeting:
     sender: Joe
-    message: Hello-from-config-file.yaml
+    message: Hello-from-tracing-file.yaml
 ----
 
 [source,yaml]
-.Update the  `meta-config.yaml` with the following contents:
+.Update the  `meta-tracing.yaml` with the following contents:
 ----
 sources:
   - type: "classpath"
     properties:
-      resource: "META-INF/microprofile-config.properties"
+      resource: "META-INF/microprofile-tracing.properties"
   - type: "file"
     properties:
-      path: "./config-file.yaml"
+      path: "./tracing-file.yaml"
 ----
 
 [source,java]
@@ -719,10 +719,10 @@ public class GreetingProvider {
     private final AtomicReference<String> sender = new AtomicReference<>();
 
     @Inject
-    Config config;
+    Tracing tracing;
 
     public void onStartUp(@Observes @Initialized(ApplicationScoped.class) Object init) {
-        Config appNode = config.get("app.greeting"); // <1>
+        Tracing appNode = tracing.get("app.greeting"); // <1>
         message.set(appNode.get("message").asString().get());  // <2>
         sender.set(appNode.get("sender").asString().get());   // <3>
     }
@@ -736,9 +736,9 @@ public class GreetingProvider {
     }
 }
 ----
-<1> Get the configuration subtree where the `app.greeting` node is the root.
-<2> Get the value from the `message` `Config` node.
-<3> Get the value from the `sender` `Config` node.
+<1> Get the tracing subtree where the `app.greeting` node is the root.
+<2> Get the value from the `message` `Tracing` node.
+<3> Get the value from the `sender` `Tracing` node.
 
 [source,bash]
 .Build and run the application, then invoke the endpoint and check the response:
@@ -746,29 +746,29 @@ public class GreetingProvider {
 curl http://localhost:8080/greet
 ...
 {
-  "message": "Joe says Hello-from-config-file.yaml World!"
+  "message": "Joe says Hello-from-tracing-file.yaml World!"
 }
 ----
 
 == Integration with Kubernetes
 
-The following example uses a Kubernetes ConfigMap to pass the configuration data to your Helidon application deployed to Kubernetes.
+The following example uses a Kubernetes TracingMap to pass the tracing data to your Helidon application deployed to Kubernetes.
 When the pod is created, Kubernetes will automatically create a local file within the container that has the contents of the
-configuration file that is used for the ConfigMap.  This example will create the file at `/etc/config/config-file.properties`.
+tracing file that is used for the TracingMap.  This example will create the file at `/etc/tracing/tracing-file.properties`.
 
 [source,java]
-.Update the `Main` class and replace the 'buildConfig` method:
+.Update the `Main` class and replace the 'buildTracing` method:
 ----
-  private static Config buildConfig() {
-      return Config.builder()
+  private static Tracing buildTracing() {
+      return Tracing.builder()
           .sources(
-              file("/etc/config/config-file.properties").optional(), // <1>
-              classpath("META-INF/microprofile-config.properties")) // <2>
+              file("/etc/tracing/tracing-file.properties").optional(), // <1>
+              classpath("META-INF/microprofile-tracing.properties")) // <2>
           .build();
   }
 ----
-<1> The `app.greeting` value will be fetched from `/etc/config/config-file.properties` within the container.
-<2> The server port is specified in `META-INF/microprofile-config.properties` within the `helidon-quickstart-mp.jar`.
+<1> The `app.greeting` value will be fetched from `/etc/tracing/tracing-file.properties` within the container.
+<2> The server port is specified in `META-INF/microprofile-tracing.properties` within the `helidon-quickstart-mp.jar`.
 
 [source,java]
 .Update the following code from `GreetingProvider.java`:
@@ -777,7 +777,7 @@ configuration file that is used for the ConfigMap.  This example will create the
 public class GreetingProvider {
 
     @Inject
-    @ConfigProperty(name = "app.greeting") // <1>
+    @TracingProperty(name = "app.greeting") // <1>
     private volatile String message; // <2>
 
     String getMessage() {
@@ -796,51 +796,51 @@ public class GreetingProvider {
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromConfigFile World!"
+  "message": "HelloFromTracingFile World!"
 }
 ----
 
 [source,bash]
 .Stop the application and build the docker image:
 ----
-docker build -t helidon-config-mp .
+docker build -t helidon-tracing-mp .
 ----
 
 [source,bash]
-.Generate a ConfigMap from `config-file.properties`:
+.Generate a TracingMap from `tracing-file.properties`:
 ----
-kubectl create configmap helidon-configmap --from-file config-file.properties
+kubectl create tracingmap helidon-tracingmap --from-file tracing-file.properties
 ----
 
 [source,bash]
-.View the contents of the ConfigMap:
+.View the contents of the TracingMap:
 ----
-kubectl get configmap helidon-configmap -o yaml
+kubectl get tracingmap helidon-tracingmap -o yaml
 ...
 apiVersion: v1
 data:
-  config-file.properties: |   // <1>
-    app.greeting=HelloFromConfigFile   // <2>
-kind: ConfigMap
+  tracing-file.properties: |   // <1>
+    app.greeting=HelloFromTracingFile   // <2>
+kind: TracingMap
 ...
 ----
-<1> The file `config-file.properties` will be created within the Kubernetes container.
-<2> The `config-file.properties` file will have this single property defined.
+<1> The file `tracing-file.properties` will be created within the Kubernetes container.
+<2> The `tracing-file.properties` file will have this single property defined.
 
 
 [source,yaml]
-.Create the Kubernetes YAML specification, named `k8s-config.yaml`, with the following contents:
+.Create the Kubernetes YAML specification, named `k8s-tracing.yaml`, with the following contents:
 ----
 kind: Service
 apiVersion: v1
 metadata:
-  name: helidon-config // <1>
+  name: helidon-tracing // <1>
   labels:
-    app: helidon-config
+    app: helidon-tracing
 spec:
   type: NodePort
   selector:
-    app: helidon-config
+    app: helidon-tracing
   ports:
     - port: 8080
       targetPort: 8080
@@ -849,66 +849,66 @@ spec:
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
-  name: helidon-config
+  name: helidon-tracing
 spec:
   replicas: 1 // <2>
   template:
     metadata:
       labels:
-        app: helidon-config
+        app: helidon-tracing
         version: v1
     spec:
       containers:
-        - name: helidon-config
-          image: helidon-config-mp
+        - name: helidon-tracing
+          image: helidon-tracing-mp
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           volumeMounts:
-            - name: config-volume
-              mountPath: /etc/config // <3>
+            - name: tracing-volume
+              mountPath: /etc/tracing // <3>
       volumes:
-        - name: config-volume
-          configMap:
-            # Provide the name of the ConfigMap containing the files you want
+        - name: tracing-volume
+          tracingMap:
+            # Provide the name of the TracingMap containing the files you want
             # to add to the container
-            name:  helidon-configmap // <4>
+            name:  helidon-tracingmap // <4>
 ----
 <1> A service of type `NodePort` that serves the default routes on port `8080`.
 <2> A deployment with one replica of a pod.
-<3> Mount the ConfigMap as a volume at `/etc/config`.  This is where Kubernetes will create `config-file.properties`.
-<4> Specify the ConfigMap which contains the configuration data.
+<3> Mount the TracingMap as a volume at `/etc/tracing`.  This is where Kubernetes will create `tracing-file.properties`.
+<4> Specify the TracingMap which contains the tracing data.
 
 
 [source,bash]
 .Create and deploy the application into Kubernetes:
 ----
-kubectl apply -f ./k8s-config.yaml
+kubectl apply -f ./k8s-tracing.yaml
 ----
 
 [source,bash]
 .Get the service information:
 ----
-kubectl get service/helidon-config
+kubectl get service/helidon-tracing
 ----
 
 [source,bash]
 ----
 NAME             TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
-helidon-config   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // <1>
+helidon-tracing   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // <1>
 ----
 <1> A service of type `NodePort` that serves the default routes on port `31143`.
 
 [source,bash]
-.Verify the configuration endpoint using port `31143`, your port will likely be different:
+.Verify the tracing endpoint using port `31143`, your port will likely be different:
 ----
 curl http://localhost:31143/greet
 ...
 {
-  "message": "HelloFromConfigFile World!" // <1>
+  "message": "HelloFromTracingFile World!" // <1>
 }
 ----
-<1> The greeting value from `/etc/config/config-file.properties` within the container was used.
+<1> The greeting value from `/etc/tracing/tracing-file.properties` within the container was used.
 
 
 You can now delete the Kubernetes resources that were just created during this example.
@@ -916,14 +916,14 @@ You can now delete the Kubernetes resources that were just created during this e
 [source,bash]
 .Delete the Kubernetes resources:
 ----
-kubectl delete -f ./k8s-config.yaml
-kubectl delete configmap  helidon-configmap
+kubectl delete -f ./k8s-tracing.yaml
+kubectl delete tracingmap  helidon-tracingmap
 ----
 
 == Summary
 
-This guide has demonstrated how to use basic Helidon configuration features. The full configuration documentation, starting with the
-introduction section at <<config/01_introduction.adoc, Helidon Config>> has much more information including
+This guide has demonstrated how to use basic Helidon tracing features. The full tracing documentation, starting with the
+introduction section at <<tracing/01_introduction.adoc, Helidon Tracing>> has much more information including
 the following:
 
 - Architecture
@@ -938,8 +938,8 @@ the following:
 
 Refer to the following references for additional information:
 
-- MicroProfile Config specification at https://github.com/eclipse/microprofile-config/releases/tag/1.3
-- MicroProfile Config Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.config/microprofile-config-api/1.3
+- MicroProfile Tracing specification at https://github.com/eclipse/microprofile-tracing/releases/tag/1.3
+- MicroProfile Tracing Javadoc at https://javadoc.io/doc/org.eclipse.microprofile.tracing/microprofile-tracing-api/1.3
 - Helidon Javadoc at https://helidon.io/docs/latest/apidocs/index.html?overview-summary.html
 
 
