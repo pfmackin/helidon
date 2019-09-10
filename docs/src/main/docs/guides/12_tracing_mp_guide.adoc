@@ -34,10 +34,10 @@ that can be used to run some basic examples using tracing with Helidon MP.
 
 == Getting started with tracing
 
-Distributed tracing is a critical feature of micro-service based applications since it traces workflow both
+Distributed tracing is a critical feature of micro-service based applications, since it traces workflow both
 within a service and across multiple services.  This gives you insight to sequence and timing data for specific blocks of work,
 which helps you identify performance and operational issues.  Helidon MP includes support for distributed tracing
-through the https://github.com/helm/helm[OpenTracing API].  Tracing is integrated with WebServer, gRPC Server,
+through the https://opentracing.io[OpenTracing API].  Tracing is integrated with WebServer, gRPC Server,
 and Security using either the https://zipkin.io[Zipkin] or https://www.jaegertracing.io[Jaeger] tracers.
 The examples in this guide will use Zipkin, and traces will be viewed using both the Zipkin API and UI.
 
@@ -65,23 +65,23 @@ cd helidon-quickstart-mp
 
 == Spans and Traces
 
-A _span_ is the basic unit of work done within a single service, on a single host.  Every span has a name, starting timestamp, and the duration.
-A _trace_ contains a collection of spans, where spans are organzied as directed acylic graphs (DAG) and can belong to multiple services,
+A _span_ is the basic unit of work done within a single service, on a single host.  Every span has a name, starting timestamp, and duration.
+A _trace_ contains a collection of spans, where spans are organized as a directed acylic graph (DAG) and can belong to multiple services,
 running on multiple hosts.  The _OpenTracing Data Model_ describes the details
 at https://opentracing.io/specification[The OpenTracing Semantic Specification].
-For example, when you invoke a REST API call, Helidon creates a unique `trace` to track the spans.  Then, spans are created and tracked
+For example, when you invoke a REST API call, Helidon creates a unique `trace` to track the spans.  Spans are automatically created by Helidon as needed
 during execution of the REST request.  The following example demonstrates this using a simple trace.
 
-NOTE: Helidon automatically enables tracing for JAX-RS resources methods so you don't need to use annoations with JAX-RS.
+NOTE: Helidon automatically enables tracing for JAX-RS resources methods so you don't need to use annotations with JAX-RS.
 
 [source,bash]
-Run Zipkin within a docker container.
+Run Zipkin within a docker container:
 ----
 .docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin
 ----
 
-As mentioned, Helidon include built-in support for tracing.  To enable it you need to update the pom.xml file and
-add the following to the `<dependencies>` section (*not* `<dependencyManagement>`):
+As mentioned, Helidon includes built-in support for tracing.  To enable it, you need to update the pom.xml file and
+add the following to the `<dependencies>` section (*not* `<dependencyManagement>`).
 
 [source,xml]
 .Add the following dependency to `pom.xml`:
@@ -117,8 +117,8 @@ curl http://localhost:8080/greet
 
 === Viewing tracing using Zipkin REST API
 
-Because you have tracing enable, that endpoint invocation resulted in a new trace being created.
-First, get the service that Zipkin is tracing using the Zipkin API.
+Because you have tracing enable, the previous endpoint invocation resulted in a new trace being created.
+Let's get the trace data that was generated using the Zipkin API.  First get the service information.
 
 [source,bash]
 .Run the curl command in a new terminal window and check the response:
@@ -136,9 +136,9 @@ of names.
 [source,bash]
 .Invoke the endpoint below and check the response:
 ----
-curl http://localhost:9411/api/v2/spans
+curl -X GET "http://localhost:9411/api/v2/spans?serviceName=helidon-mp-1" -H "accept: application/json" // <1>
 ...
-[ // <1> <span>
+[ // <2>
   "content-read",
   "content-write",
   "get:io.helidon.examples.quickstart.mp.greetresource.getdefaultmessage",
@@ -148,10 +148,11 @@ curl http://localhost:9411/api/v2/spans
   "security:response"
 ]
 ----
-<1> These are the span names.  If you invoke the `/greet` endpoint again, then
-invoke the `/spans` endpoint you will get the same response.
+<1> Get the span names for the `helidon-mp-1` service.
+<2> These are the span names.  If you invoke the `/greet` endpoint again, then
+invoke the `/spans` endpoint, you will get the same response.
 
-Finally, lets get the contents of the trace. Notice that each span has a `parentId` field,
+Next, get the contents of the trace as shown below.  Notice that each span has a `parentId` field,
 except the `get:io.helidon.examples.quickstart.mp.greetresource.getdefaultmessage` span,
 which is the root.
 
@@ -183,25 +184,26 @@ curl -X GET "http://localhost:9411/api/v2/traces?serviceName=helidon-mp-1&limit=
 ]
 
 ----
-<1> Get the oldest trace only, using the `limit=1` query param.  There are other query params that lets you restrict
+<1> Get the oldest trace only, using the `limit=1` query param.  There are other query params that let you restrict
 results to a specific time window.
 <2> The request will return seven spans, one for each name, along with an unamed JSON node, which
 has the status.
-<3> User defined tags can be used to query, filter, and understand trace data.
+<3> User defined tags that can be used to query and filter trace data.
 
 === Viewing tracing using Zipkin UI
 
-Even with a tracing trivial example, the tracing output data is verbose and can be difficult to interpret using the REST API.  Zipkin
-offers a web-based UI at http://localhost:9411/zipkin, where you can see a visual representation of the same data and the
-relationship between spans within a trace, and even across services.
+The tracing output data is verbose and can be difficult to interpret using the REST API, especially since it represents
+a structure of spans.  Zipkin offers a web-based UI at http://localhost:9411/zipkin, where you can see a visual
+representation of the same data and the relationship between spans within a trace.  Click on the `Lens UI` button at the top center,
+since that is the specific UI used by this guide.
 
-The image below view shows trace summary, including start time and duration.  There are two traces,
+The image below shows the trace summary, including start time and duration of each trace. There are two traces,
 each one generated in response to a `curl http://localhost:8080/greet` invocation.
 
 .Tracing list view
 image::guides/12_tracing_top.png[Traces]
 
-Click on trace `2e0af8866efdef35` and you will see the trace detail page where the spans are listed.  You can clearly
+Click on a trace and you will see the trace detail page where the spans are listed.  You can clearly
 see the root span and the relationship among all the spans in the trace, along with timing information.
 
 .Trace detail page
@@ -211,17 +213,24 @@ NOTE: A parent span might not depend on the result of the child. This is called 
 https://github.com/opentracing/specification/blob/master/specification.md[Open Tracing Semantic Spec].  Notice, the
 last span which writes the response after the root span ends, falls into this category.
 
+You can examine span details by clicking on the span row.  Refer to the image below.  This view shows detailed timing information along with tags.
+You can see times for each space relative to the root span.  These rows are  annotated with `Server Start` and `Server Finish`, as shown in the third column.
+
+.Span detail page
+image::guides/12_tracing_span_detail.png[Span Details]
+
+
 === Enabling Tracing on CDI beans
 
 So far, you have used tracing with JAX-RS without needing to annotate.  You can enable tracing on other CDI beans, either at the class level
-or at the method level, as shown by the following example.
+or at the method level, as shown by the following examples.
 
 ==== Tracing at the method level
 
-To trace at the mthod level, you just annotate a method with @Traced.
+To trace at the method level, you just annotate a method with @Traced.
 
 [source,java]
-.Add the @Traced annoation to the `GreetingProvider.getMessage`:
+.Add the @Traced annotation to the `GreetingProvider.getMessage`:
 ----
     @Traced  // <1>
     String getMessage() {
@@ -229,7 +238,7 @@ To trace at the mthod level, you just annotate a method with @Traced.
     }
 ...
 ----
-<1> This will enable tracing for getMessage
+<1> This will enable tracing for getMessage.
 
 [source,bash]
 .Build and run the application, then invoke the endpoints and check the response:
@@ -253,40 +262,37 @@ curl -X GET "http://localhost:9411/api/v2/spans?serviceName=helidon-mp-1" -H "ac
 <2> There is new span name for the `getmessage` method, since your code called that method during the
 invocation of `/greet`.
 
-
 Click on the UI refresh button (the search icon) as shown in the image below.
 
 .Trace refresh
 image::guides/12_tracing_refresh.png[Trace Refresh]
 
-
-Click on the first trace in the list to see the trace detail page.  Notice the new span named `io.helidon.examples.quickstart.mp.greetingprovider.getmessage`.
+Click on the newest trace in the list to see the trace detail page like the one below.
+Notice the new span named `io.helidon.examples.quickstart.mp.greetingprovider.getmessage`.
 
 .Trace detail page with new span `getmessage`
 image::guides/12_tracing_getmessage.png[Trace getmessage]
-
-You can examine span details by clicking on the span row.  Refer to the image below.  This view shows detailed timing information along with tags.  You can see
-that the security span started execution `-19259μs` before the `getDefaultMessage` root span started.  The security span, and its children
-finished execution at `25.452ms` after the  `getDefaultMessage` span started.
-
-.Span detail page
-image::guides/12_tracing_span_detail.png[Span Details]
 
 
 ==== Tracing at the class level
 
 To trace at the class level, annotate the class with @Traced. This will enable tracing for all class methods,
-except for the constructor along with methods that are private. You can remove the @Traced from the method.
+except for the constructor and private methods.
 
 [source,java]
-.Add the @Traced annotation to the `GreetingProvider` class.
+.Add the @Traced annotation to the `GreetingProvider` class and remove @Traced from the `getMessage` method:
 ----
 @Traced // <1>
 @ApplicationScoped
 public class GreetingProvider {
 ...
+
+    String getMessage() { // <2>
+        return message.get();
+    }
 ----
-<1> This will enable tracing for all class methods except for the constructor and methods that are private.
+<1> This will enable tracing for all class methods, except for the constructor and methods that are private.
+<2> Remove @Traced for the `getMessage` method.
 
 [source,bash]
 .Build and run the application, then invoke the endpoints and check the response:
@@ -299,9 +305,10 @@ curl -X GET "http://localhost:9411/api/v2/spans?serviceName=helidon-mp-1" -H "ac
 ...
 ]
 ----
-<1> The same set of span names as above, since `getmessage` was the only method called in this bean.
+<1> The service has the same set of span names as above, since `getmessage` was the only method called in this bean.
 
-Lets call the other method, `setMessage`, but invoking HTTP PUT to change the greeting.
+
+Next, invoke HTTP PUT to change the greeting, which will cause `setMessage` to be called.
 
 [source,bash]
 .Build and run the application, then invoke the endpoints and check the response:
@@ -383,21 +390,21 @@ curl -X GET "http://localhost:9411/api/v2/spans?serviceName=helidon-mp-1" -H "ac
 === Tracing across services
 
 Helidon automatically traces across services, providing that the services use the same tracer, for example: the same instance of Zipkin.
-This means a single trace can include spans from multiple services and hosts.  Likewise, a span can have descendents from different
-services and hosts.  As mentioned previously, a span itself is restricted to a single service.  OpenTracing uses a `SpanContext` to
-propagate tracing information across process bounderies.  When you make client API calls that cross process boundaries, Helidon will
+This means a single trace can include spans from multiple services and hosts.  A span is restricted to a single service,
+but its descendents can belong to different services and hosts.  OpenTracing uses a `SpanContext` to
+propagate tracing information across process bounderies.  When you make client API calls, Helidon will
 internally call OpenTracing APIs to propagate the `SpanContext`. There is nothing you need to do in your application to make this work.
 
 To demonstrate distributed tracing, you will need to create a second project, where the server listens on port 8081.
-Create a different root directory from the original project, then do the following steps, similiar to
-what you did at the start of this guide.
+Create a new root directory to hold this new project, then do the following steps, similiar to
+what you did at the start of this guide:
 
 1. Create a project using the `helidon-quickstart-mp` archetype.
 2. Add the `helidon-tracing-zipkin` dependency to the `pom.xml` file.
 3. Replace `META-INF/microprofile-tracing.properties` with the following:
 ----
 app.greeting=Hello From MP-2
-tracing.service=helidon-mp-8080-2
+tracing.service=helidon-mp-2
 
 # Microprofile server properties
 server.port=8081
@@ -414,37 +421,70 @@ curl http://localhost:8081/greet
 }
 ----
 
-Once you have validated that this second server is running correctly, you need to modify the original application to
+Once you have validated that this second service is running correctly, you need to modify the original application to
 call it.
 
 [source,java]
 .Update the `GreetResource` class with the following code:
 ----
-import javax.ws.rs.client.WebTarget;
-import org.glassfish.jersey.server.Uri;
+package io.helidon.examples.quickstart.mp;
+
 import io.helidon.security.integration.jersey.SecureClient;
-...
+import java.util.Collections;
+import javax.enterprise.context.RequestScoped;
+import javax.inject.Inject;
+import javax.json.Json;
+import javax.json.JsonBuilderFactory;
+import javax.json.JsonObject;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import org.glassfish.jersey.server.Uri;
 
-@Uri("http://localhost:8080/greet")
-@SecureClient
-private WebTarget target;
+@Path("/greet")
+@RequestScoped
+public class GreetResource {
 
+  @Uri("http://localhost:8081/greet")
+  @SecureClient
+  private WebTarget target; // <1>
 
-    @GET
-    @Path("/outbound/{name}")
-    public JsonObject outbound(@PathParam("name") String name) {
-        return target.path(name)
-             .request()
-             .accept(MediaType.APPLICATION_JSON_TYPE)
-             .get(JsonObject.class);
-    }
+  private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
+  private final GreetingProvider greetingProvider;
+
+  @Inject
+  public GreetResource(GreetingProvider greetingConfig) {
+    this.greetingProvider = greetingConfig;
+  }
+
+  @SuppressWarnings("checkstyle:designforextension")
+  @GET
+  @Produces(MediaType.APPLICATION_JSON)
+  public JsonObject getDefaultMessage() {
+    return createResponse("World");
+  }
+
+  @GET
+  @Path("/outbound") // <2>
+  public JsonObject outbound() {
+    return target.request().accept(MediaType.APPLICATION_JSON_TYPE).get(JsonObject.class);
+  }
+
+  private JsonObject createResponse(String who) {
+    String msg = String.format("%s %s!", greetingProvider.getMessage(), who);
+
+    return JSON.createObjectBuilder().add("message", msg).build();
+  }
+}
 ----
-<1> The `getMessage` method will be traced since it is externally invoked by `GreetingResource`.
-<2> The `getMessage2` method will not be traced, even with the @Traced annotation, since it is called internally by `getMessage`.
+<1> This is the `WebTarget` needed to send a request to the second service at port `8081`.
+<2> This is the new endpoint that will call the second service.
 
 
 [source,bash]
-.Build and run the application, then invoke the endpoints and check the response:
+.Build and run the application, then invoke the endpoint and check the response:
 ----
 curl -i http://localhost:8080/greet/outbound // <1>
 ...
@@ -452,7 +492,7 @@ curl -i http://localhost:8080/greet/outbound // <1>
   "message": "Hello From MP-2 World!" // <2>
 }
 ----
-<1> The request went to the server on `8080`, which then invoked the server at `8081` to get the greeting.
+<1> The request went to the service on `8080`, which then invoked the service at `8081` to get the greeting.
 <2> Notice the greeting came from the second service.
 
 Now view the Zipkin UI and notice that there is a trace across two services.
@@ -460,81 +500,33 @@ Now view the Zipkin UI and notice that there is a trace across two services.
 .Tracing multiple service list view
 image::guides/12_tracing_top_2_services.png[Traces]
 
-Click on the top trace, which shows two services, to see the detail view.
+Click on the trace with two services to see the detail view.
 
 .Tracing across multiple services detail view
 image::guides/12_tracing_detail_2_services.png[Traces]
 
 In the image above, you can see that the trace includes spans from two services. You will notice there is a gap before the sixth span,
-which is a get operation. This is a one time initialization delay.  Run the `/outbound` curl command again and look at the new trace to
-see that delay no longer exists.
-
+which is a `get` operation. This is a one time initialization delay.  Run the `/outbound` curl command again and look at the new trace to
+see that the delay no longer exists.
 
 == Integration with Kubernetes
 
-The following example uses a Kubernetes TracingMap to pass the tracing data to your Helidon application deployed to Kubernetes.
-When the pod is created, Kubernetes will automatically create a local file within the container that has the contents of the
-tracing file that is used for the TracingMap.  This example will create the file at `/etc/tracing/tracing-file.properties`.
-
-[source,java]
-.Update the `Main` class and replace the `buildTracing` method:
-----
-  private static Tracing buildTracing() {
-      return Tracing.builder()
-          .sources(
-              file("/etc/tracing/tracing-file.properties").optional(), // <1>
-              classpath("META-INF/microprofile-tracing.properties")) // <2>
-          .build();
-  }
-----
-<1> The `app.greeting` value will be fetched from `/etc/tracing/tracing-file.properties` within the container.
-<2> The server port is specified in `META-INF/microprofile-tracing.properties` within the `helidon-quickstart-mp.jar`.
-
-[source,java]
-.Update the following code from `GreetingProvider.java`:
-----
-@ApplicationScoped
-public class GreetingProvider {
-
-    @Inject
-    @TracingProperty(name = "app.greeting") // <1>
-    private volatile String message; // <2>
-
-    String getMessage() {
-        return message;
-    }
-
-    void setMessage(String message) {
-        this.message = message;
-    }
-}
-----
+The following example demonstrate how to use Zipkin from a Helidon application running in Kubernetes.
 
 [source,bash]
-.Build and run the application, then invoke the endpoint and check the response:
-----
-curl http://localhost:8080/greet
-...
-{
-  "message": "HelloFromTracingFile World!"
-}
-----
-
-[source,bash]
-.Stop the application and build the docker image:
+.Stop the application and build the docker image for your application.
 ----
 docker build -t helidon-tracing-mp .
 ----
 
 [source,bash]
-.Create a Zipkin deployment then expose it port 9142:
+.Create a Zipkin deployment, then expose it port 9142:
 ----
 kubectl create deployment  helidon-zipkin  --image=openzipkin/zipkin
 kubectl expose deployment helidon-zipkin --port=9412 --target-port=9411 --type=LoadBalancer
 ----
 
 Navigate to http://localhost:9412/zipkin to validate that you can access Zipkin running in Kubernetes.
-
 
 [source,yaml]
 .Create the Kubernetes YAML specification, named `tracing.yaml`, with the following contents:
@@ -576,7 +568,6 @@ spec:
 <1> A service of type `NodePort` that serves the default routes on port `8080`.
 <2> A deployment with one replica of a pod.
 
-
 [source,bash]
 .Create and deploy the application into Kubernetes:
 ----
@@ -607,7 +598,6 @@ curl http://localhost:31143/greet
 ----
 
 Access the Zipkin UI at http://localhost:9412/zipkin and click on the refresh icon to see the trace that was just created.
-
 
 You can now delete the Kubernetes resources that were just created during this example.
 
