@@ -34,10 +34,10 @@ that can be used to run some basic examples using tracing with Helidon MP.
 
 == Getting started with tracing
 
-Distributed tracing is a critical feature of micro-service based applications since it traces workflow
-across multiple services.  This helps you identify performance and operational issues both within a service
-and between dependent services.  Helidon MP includes support for distributed tracing through the
-https://github.com/helm/helm[OpenTracing API].  Tracing is integrated with WebServer, gRPC Server,
+Distributed tracing is a critical feature of micro-service based applications since it traces workflow both
+within a service and across multiple services.  This gives you insight to sequence and timing data for specific blocks of work,
+which helps you identify performance and operational issues.  Helidon MP includes support for distributed tracing
+through the https://github.com/helm/helm[OpenTracing API].  Tracing is integrated with WebServer, gRPC Server,
 and Security using either the https://zipkin.io[Zipkin] or https://www.jaegertracing.io[Jaeger] tracers.
 The examples in this guide will use Zipkin, and traces will be viewed using both the Zipkin API and UI.
 
@@ -68,9 +68,8 @@ cd helidon-quickstart-mp
 A _span_ is the basic unit of work done within a single service, on a single host.  A _trace_ contains a collection of spans, where spans
 are organzied as directed acylic graphs (DAG) and can belong to multiple services, running on multiple hosts.  The _OpenTracing Data Model_
 describes the details at https://opentracing.io/specification[The OpenTracing Semantic Specification].
-For example, when you invoke a REST API call, that begins a unique `trace`, which might contain several spans: the endpoint span,
-a GET request span, security spans, and a GET response span.  In this example, the GET and security spans are children of the endpoint span.
-The following example demonstrates this using a simple trace.
+For example, when you invoke a REST API call, Helidon creates a unique `trace` to tracke the spans.  Then, spans are created and tracked
+during execution of the REST request.  The following example demonstrates this using a simple trace.
 
 [source,bash]
 Run Zipkin within a docker container.
@@ -113,6 +112,8 @@ curl http://localhost:8080/greet
 }
 ----
 
+===== Viewing tracing using Zipkin REST API
+
 Because you have tracing enable, that endpoint invocation resulted in a new trace being created.
 First, get the service that Zipkin is tracing using the Zipkin API.
 
@@ -147,9 +148,48 @@ curl http://localhost:9411/api/v2/spans
 <1> These are the span names.  If you invoke the `/greet` endpoint again, then
 invoke the `/spans` endpoint you will get the same response.
 
-Now lets get the contents of the trace. Notice that each span has a `parentId` field,
+Finally, lets get the contents of the trace. Notice that each span has a `parentId` field,
 except the `get:io.helidon.examples.quickstart.mp.greetresource.getdefaultmessage` span,
 which is the root.
+
+[source,bash]
+.Invoke the endpoint below and check the response:
+----
+curl -X GET "http://localhost:9411/api/v2/traces?serviceName=helidon-mp-1&limit=1" -H "accept: application/json"  // <1>
+...
+[
+  [ // <1>
+    {
+      "traceId": "2e0af8866efdef35",
+      "parentId": "2e0af8866efdef35",
+      "id": "b5d61690f230fde4",
+      "kind": "SERVER",
+      "name": "content-read",
+      "timestamp": 1568077339998659,
+      "duration": 41,
+      "localEndpoint": {
+        "serviceName": "helidon-mp-1",
+        "ipv4": "192.168.1.115"
+      },
+      "tags": {
+        "requested.type": "java.io.InputStream"
+      }
+    },
+...
+(truncated)
+]
+
+----
+<1> Get the oldest trace only using `limit=1` query param.  There are other query params that lets you restrict
+results to a specific time window.
+<2> The request will return seven spans, one for each name, along with an unamed JSON node, which
+is the status node.
+
+===== Viewing tracing using Zipkin UI
+
+Even with a tracing trivial example, the tracing output data is verbose and can be difficult to interpret using the REST API.  Zipkin
+offers a web-based UI at http://localhost:9411/zipkin, where you can see a visual representation of the same data and the
+relationship between spans within a trace, and even across services.
 
 ===== Environment variable override
 
