@@ -34,7 +34,12 @@ that can be used to run some basic examples using tracing with Helidon MP.
 
 == Getting started with tracing
 
-Helidon has built-in support for the https://opentracing.io/ OpenTracing API
+Distributed tracing is a critical feature of micro-service based applications since it traces workflow
+across multiple services.  This helps you identify performance and operational issues both within a service
+and between dependent services.  Helidon MP includes support for distributed tracing through the
+https://github.com/helm/helm[OpenTracing API].  Tracing is integrated with WebServer, gRPC Server,
+and Security using either the https://zipkin.io[Zipkin] or https://www.jaegertracing.io[Jaeger] tracers.
+The examples in this guide will use Zipkin, and traces will be viewed using both the Zipkin API and UI.
 
 === Create a sample Helidon MP project
 
@@ -58,69 +63,37 @@ mvn archetype:generate -DinteractiveMode=false \
 cd helidon-quickstart-mp
 ----
 
-=== tracing Formats
+=== Spans and Traces
 
-Helidon tracing sources can use different formats for the tracing data. You can specify the
-format on a per-source bases, mixing and matching formats as required.  Here are the supported formats,
-each with the extension name you should use. By default, Helidon will determine the media type based on the extension name.
-
-* Java Property (.properties)
-* JSON (.json)
-* YAML (.yaml)
-* HOCON (.conf)
-
-The remainder of this document will use these formats in examples and show you how to tracingure Helidon to parse them.
-
-=== Default tracing
-
-Helidon has an internal tracing, so you are not required to provide any tracingure data for your application,
-though in practice you most likely would.  By default, that tracing can be overridden from three sources:
-system properties, environment variables, and  the contents of `META-INF/microprofile-tracing.properties`.
-For example, if you specify a custom server port in `META-INF/microprofile-tracing.properties`
-then your server will listen on that port.
-
-In your application code, Helidon uses the default tracing when you create a `Server` object without a custom `Tracing` object.
-See the following code from the project you created.
-
-[source,Java]
-.View `Main.startServer`:
-----
-    static Server startServer() {
-        return Server.create().start(); // <1>
-    }
-----
-<1> There are no `Tracing` object being used during server creation, so the default tracing is used.
-
-=== Source precedence for default tracing
-
-In order to properly tracingure your application using tracing sources, you need to understand
-the precedence rules that Helidon uses to merge your tracing data.  By default,
-Helidon will use the following sources in precedence order:
-
-1. Java system properties
-2. Environment variables
-3. Properties specified in `META-INF/microprofile-tracing.properties`
-
-Each of these sources specify tracing properties in Java Property format (key/value), like `color=red`. If any of the Helidon
-required properties are not specified in one of these source, like `server.port`, then Helidon will use a default value.
-
-NOTE: Because environment variable names are restricted to alphanumeric characters and underscore,
-Helidon adds aliases to the environment tracing source, allowing entries with dotted and/or
-hyphenated keys to be overriden.  For example, this mapping allows an environment variable named "APP_GREETING" to override
-an entry key named "app.greeting".  In the same way, an environment variable named "APP_dash_GREETING" will map to
-"app-greeting".  See <<tracing/06_advanced-tracing.adoc,Advanced Tracing>> for more information.
-
-The following examples will demonstrate this precedence order.
-
-==== Default tracing resource
-
-Change a tracing parameter in the default tracing resource file, `META-INF/microprofile-tracing.properties`.
-There are no environment variable or system property overrides defined.
+A _span_ is the basic unit of work done within a single service, on a single host.  A _trace_ contains a collection of spans, where spans
+are organzied as directed acylic graphs (DAG) and can belong to multiple services, running on multiple hosts.  The _OpenTracing Data Model_
+describes the details at https://opentracing.io/specification[The OpenTracing Semantic Specification].
+For example, when you invoke a REST API call, that begins a unique `trace`, which might contain several spans: the endpoint span,
+a GET request span, security spans, and a GET response span.  In this example, the GET and security spans are children of the endpoint span.
+The following example demonstrates this using a simple trace.
 
 [source,bash]
-.Change `app.greeting` in the META-INF/microprofile-tracing.properties` from `Hello` to `HelloFromMPTracing`:
+Run Zipkin within a docker container.
 ----
-app.greeting=HelloFromMPTracing
+.docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin
+----
+
+As mentioned, Helidon include built-in support for tracing.  To enable it you need to update the pom.xml file and
+add the following to the `<dependencies>` section (*not* `<dependencyManagement>`):
+
+[source,xml]
+.Add the following line to `META-INF/microprofile-tracing.properties`:
+----
+<dependency>
+<groupId>io.helidon.tracing</groupId>
+<artifactId>helidon-tracing-zipkin</artifactId>
+</dependency>
+----
+
+[source,bash]
+.Add the following line to `META-INF/microprofile-tracing.properties`:
+----
+tracing.service=helidon-mp-1
 ----
 
 [source,bash]
@@ -136,10 +109,47 @@ java -jar target/helidon-quickstart-mp.jar
 curl http://localhost:8080/greet
 ...
 {
-  "message": "HelloFromMPTracing World!" // <1>
+  "message": "Hello World!"
 }
 ----
-<1> The new `app.greeting` value in `META-INF/microprofile-tracing.properties` is used.
+
+Because you have tracing enable, that endpoint invocation resulted in a new trace being created.
+First, get the service that Zipkin is tracing using the Zipkin API.
+
+[source,bash]
+.Run the curl command in a new terminal window and check the response:
+----
+curl http://localhost:9411/api/v2/services
+...
+["helidon-mp-1"] // <1>
+----
+<1> This is the tracing service name specified in `META-INF/microprofile-tracing.properties`.
+
+Each span used by a service has a name, which is unique within a trace. If you
+invoke the `/greet` endpoint multiple times, you will still get the same set
+of names.
+
+[source,bash]
+.Invoke the endpoint below and check the response:
+----
+curl http://localhost:9411/api/v2/spans
+...
+[ // <1> <span>
+  "content-read",
+  "content-write",
+  "get:io.helidon.examples.quickstart.mp.greetresource.getdefaultmessage",
+  "security",
+  "security:atn",
+  "security:atz",
+  "security:response"
+]
+----
+<1> These are the span names.  If you invoke the `/greet` endpoint again, then
+invoke the `/spans` endpoint you will get the same response.
+
+Now lets get the contents of the trace. Notice that each span has a `parentId` field,
+except the `get:io.helidon.examples.quickstart.mp.greetresource.getdefaultmessage` span,
+which is the root.
 
 ===== Environment variable override
 
