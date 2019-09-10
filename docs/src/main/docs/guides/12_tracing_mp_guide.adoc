@@ -66,7 +66,7 @@ cd helidon-quickstart-mp
 == Spans and Traces
 
 A _span_ is the basic unit of work done within a single service, on a single host.  Every span has a name, starting timestamp, and duration.
-A _trace_ contains a collection of spans, where spans are organized as a directed acylic graph (DAG) and can belong to multiple services,
+A _trace_ contains a collection of spans, where spans are organized as a directed acyclic graph (DAG) and can belong to multiple services,
 running on multiple hosts.  The _OpenTracing Data Model_ describes the details
 at https://opentracing.io/specification[The OpenTracing Semantic Specification].
 For example, when you invoke a REST API call, Helidon creates a unique `trace` to track the spans.  Spans are automatically created by Helidon as needed
@@ -93,7 +93,7 @@ add the following to the `<dependencies>` section (*not* `<dependencyManagement>
 ----
 
 [source,bash]
-.Add the following line to `META-INF/microprofile-tracing.properties`:
+.Add the following line to `META-INF/microprofile-config.properties`:
 ----
 tracing.service=helidon-mp-1
 ----
@@ -127,7 +127,7 @@ curl http://localhost:9411/api/v2/services
 ...
 ["helidon-mp-1"] // <1>
 ----
-<1> This is the tracing service name specified in `META-INF/microprofile-tracing.properties`.
+<1> This is the tracing service name specified in `META-INF/microprofile-config.properties`.
 
 Each span used by a service has a name, which is unique within a trace. If you
 invoke the `/greet` endpoint multiple times, you will still get the same set
@@ -186,7 +186,7 @@ curl -X GET "http://localhost:9411/api/v2/traces?serviceName=helidon-mp-1&limit=
 ----
 <1> Get the oldest trace only, using the `limit=1` query param.  There are other query params that let you restrict
 results to a specific time window.
-<2> The request will return seven spans, one for each name, along with an unamed JSON node, which
+<2> The request will return seven spans, one for each name, along with an unnamed JSON node, which
 has the status.
 <3> User defined tags that can be used to query and filter trace data.
 
@@ -214,7 +214,7 @@ https://github.com/opentracing/specification/blob/master/specification.md[Open T
 last span which writes the response after the root span ends, falls into this category.
 
 You can examine span details by clicking on the span row.  Refer to the image below.  This view shows detailed timing information along with tags.
-You can see times for each space relative to the root span.  These rows are  annotated with `Server Start` and `Server Finish`, as shown in the third column.
+You can see times for each space relative to the root span.  These rows are annotated with `Server Start` and `Server Finish`, as shown in the third column.
 
 .Span detail page
 image::guides/12_tracing_span_detail.png[Span Details]
@@ -391,17 +391,17 @@ curl -X GET "http://localhost:9411/api/v2/spans?serviceName=helidon-mp-1" -H "ac
 
 Helidon automatically traces across services, providing that the services use the same tracer, for example: the same instance of Zipkin.
 This means a single trace can include spans from multiple services and hosts.  A span is restricted to a single service,
-but its descendents can belong to different services and hosts.  OpenTracing uses a `SpanContext` to
-propagate tracing information across process bounderies.  When you make client API calls, Helidon will
+but its descendants can belong to different services and hosts.  OpenTracing uses a `SpanContext` to
+propagate tracing information across process boundaries.  When you make client API calls, Helidon will
 internally call OpenTracing APIs to propagate the `SpanContext`. There is nothing you need to do in your application to make this work.
 
 To demonstrate distributed tracing, you will need to create a second project, where the server listens on port 8081.
-Create a new root directory to hold this new project, then do the following steps, similiar to
+Create a new root directory to hold this new project, then do the following steps, similar to
 what you did at the start of this guide:
 
 1. Create a project using the `helidon-quickstart-mp` archetype.
 2. Add the `helidon-tracing-zipkin` dependency to the `pom.xml` file.
-3. Replace `META-INF/microprofile-tracing.properties` with the following:
+3. Replace `META-INF/microprofile-config.properties` with the following:
 ----
 app.greeting=Hello From MP-2
 tracing.service=helidon-mp-2
@@ -506,7 +506,7 @@ Click on the trace with two services to see the detail view.
 image::guides/12_tracing_detail_2_services.png[Traces]
 
 In the image above, you can see that the trace includes spans from two services. You will notice there is a gap before the sixth span,
-which is a `get` operation. This is a one time initialization delay.  Run the `/outbound` curl command again and look at the new trace to
+which is a `get` operation. This is a one-time initialization delay.  Run the `/outbound` curl command again and look at the new trace to
 see that the delay no longer exists.
 
 == Integration with Kubernetes
