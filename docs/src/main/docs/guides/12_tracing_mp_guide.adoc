@@ -527,28 +527,17 @@ docker build -t helidon-tracing-mp .
 ----
 
 [source,bash]
-.Generate a TracingMap from `tracing-file.properties`:
+.Create a Zipkin deployment then expose it port 9142:
 ----
-kubectl create tracingmap helidon-tracingmap --from-file tracing-file.properties
+kubectl create deployment  helidon-zipkin  --image=openzipkin/zipkin
+kubectl expose deployment helidon-zipkin --port=9412 --target-port=9411 --type=LoadBalancer
 ----
 
-[source,bash]
-.View the contents of the TracingMap:
-----
-kubectl get tracingmap helidon-tracingmap -o yaml
-...
-apiVersion: v1
-data:
-  tracing-file.properties: |   // <1>
-    app.greeting=HelloFromTracingFile   // <2>
-kind: TracingMap
-...
-----
-<1> The file `tracing-file.properties` will be created within the Kubernetes container.
-<2> The `tracing-file.properties` file will have this single property defined.
+Navigate to http://localhost:9412/zipkin to validate that you can access Zipkin running in Kubernetes.
+
 
 [source,yaml]
-.Create the Kubernetes YAML specification, named `k8s-tracing.yaml`, with the following contents:
+.Create the Kubernetes YAML specification, named `tracing.yaml`, with the following contents:
 ----
 kind: Service
 apiVersion: v1
@@ -583,26 +572,15 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
-          volumeMounts:
-            - name: tracing-volume
-              mountPath: /etc/tracing // <3>
-      volumes:
-        - name: tracing-volume
-          tracingMap:
-            # Provide the name of the TracingMap containing the files you want
-            # to add to the container
-            name:  helidon-tracingmap // <4>
 ----
 <1> A service of type `NodePort` that serves the default routes on port `8080`.
 <2> A deployment with one replica of a pod.
-<3> Mount the TracingMap as a volume at `/etc/tracing`.  This is where Kubernetes will create `tracing-file.properties`.
-<4> Specify the TracingMap which contains the tracing data.
 
 
 [source,bash]
 .Create and deploy the application into Kubernetes:
 ----
-kubectl apply -f ./k8s-tracing.yaml
+kubectl apply -f ./tracing.yaml
 ----
 
 [source,bash]
@@ -624,10 +602,11 @@ helidon-tracing   NodePort   10.99.159.2   <none>        8080:31143/TCP   8s // 
 curl http://localhost:31143/greet
 ...
 {
-  "message": "HelloFromTracingFile World!" // <1>
+  "message": "Hello World!"
 }
 ----
-<1> The greeting value from `/etc/tracing/tracing-file.properties` within the container was used.
+
+Access the Zipkin UI at http://localhost:9412/zipkin and click on the refresh icon to see the trace that was just created.
 
 
 You can now delete the Kubernetes resources that were just created during this example.
@@ -635,24 +614,19 @@ You can now delete the Kubernetes resources that were just created during this e
 [source,bash]
 .Delete the Kubernetes resources:
 ----
-kubectl delete -f ./k8s-tracing.yaml
-kubectl delete tracingmap  helidon-tracingmap
+kubectl delete -f ./tracing.yaml
+kubectl delete service helidon-zipkin
+kubectl delete deployment helidon-zipkin
 ----
 
 == Summary
 
-This guide has demonstrated how to use basic Helidon tracing features. The full tracing documentation, starting with the
-introduction section at <<tracing/01_introduction.adoc, Helidon Tracing>> has much more information including
-the following:
+This guide has demonstrated how to use basic Helidon tracing features with Zipkin.
 
-- Architecture
-- Parsers
-- Extensions
-- Filters
-- Hierarchical Access
-- Property Mapping
-- Mutability Support
-- and more...
+- Enable tracing within a service
+- Use tracing with JAX-RS and CDI beans
+- Use the Zipkin REST API and UI
+- Use tracing across multiple services
 
 
 Refer to the following references for additional information:
