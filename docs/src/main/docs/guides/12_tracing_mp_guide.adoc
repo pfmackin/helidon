@@ -32,27 +32,32 @@ that can be used to run some basic examples using tracing with Helidon MP.
 |<<about/03_prerequisites.adoc,Helidon Prerequisites>>
 |===
 
-== Getting started with tracing
+== Introduction
 
 Distributed tracing is a critical feature of micro-service based applications, since it traces workflow both
-within a service and across multiple services.  This gives you insight to sequence and timing data for specific blocks of work,
+within a service and across multiple services.  This provides insight to sequence and timing data for specific blocks of work,
 which helps you identify performance and operational issues.  Helidon MP includes support for distributed tracing
 through the https://opentracing.io[OpenTracing API].  Tracing is integrated with WebServer, gRPC Server,
 and Security using either the https://zipkin.io[Zipkin] or https://www.jaegertracing.io[Jaeger] tracers.
-The examples in this guide will use Zipkin, and traces will be viewed using both the Zipkin API and UI.
 
 === Tracing concepts
 
 This section explains a few tracing concepts that you need to understand before you get started with tracing.
-All tracing _span_ information sent from Helidon to Zipkin is associated with a service name.
 A _span_ is the basic unit of work done within a single service, on a single host.
-Every span has a name, starting timestamp, and duration.  A _trace_ contains a collection of spans, where spans
-are organized as a directed acyclic graph (DAG) and can belong to multiple services,
-running on multiple hosts.  The _OpenTracing Data Model_ describes the details
+Every span has a name, starting timestamp, and duration.  For example, the work done by a REST endpoint is a span.
+A span is associated to a single service, but its descendants can belong to different services and hosts.
+A _trace_ contains a collection of spans from one or more services, running on one or more hosts. For example,
+if you trace a service endpoint that calls another service, then the trace would contain spans from both services.
+Within a trace, spans are organized as a directed acyclic graph (DAG) and
+can belong to multiple services, running on multiple hosts.  The _OpenTracing Data Model_ describes the details
 at https://opentracing.io/specification[The OpenTracing Semantic Specification].
-For example, when you invoke a REST API call, Helidon creates a unique `trace` to track the spans.
-Spans are automatically created by Helidon as needed
-during execution of the REST request.  The following example demonstrates this using a simple trace.
+Spans are automatically created by Helidon as needed during execution of the REST request.
+
+== Getting started with tracing
+
+The examples in this guide demonstrate how to integrate tracing with helidon, how to view traces, how to trace
+across multiple services, and how to integrate with tracing with Kubernetes.  All examples use Zipkin and traces
+will be viewed using both the Zipkin API and UI.
 
 === Create a sample Helidon MP project
 
@@ -429,8 +434,7 @@ curl -X GET "http://localhost:9411/api/v2/spans?serviceName=helidon-mp-1" -H "ac
 === Tracing across services
 
 Helidon automatically traces across services, providing that the services use the same tracer, for example: the same instance of Zipkin.
-This means a single trace can include spans from multiple services and hosts.  A span is restricted to a single service,
-but its descendants can belong to different services and hosts.  OpenTracing uses a `SpanContext` to
+This means a single trace can include spans from multiple services and hosts.  OpenTracing uses a `SpanContext` to
 propagate tracing information across process boundaries.  When you make client API calls, Helidon will
 internally call OpenTracing APIs to propagate the `SpanContext`. There is nothing you need to do in your application to make this work.
 
