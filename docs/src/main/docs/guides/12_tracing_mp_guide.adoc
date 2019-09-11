@@ -41,6 +41,19 @@ through the https://opentracing.io[OpenTracing API].  Tracing is integrated with
 and Security using either the https://zipkin.io[Zipkin] or https://www.jaegertracing.io[Jaeger] tracers.
 The examples in this guide will use Zipkin, and traces will be viewed using both the Zipkin API and UI.
 
+=== Tracing concepts
+
+This section explains a few tracing concepts that you need to understatnd before you get started with tracing.
+All tracing information sent from Helidon to Zipkin is associated with a service name.
+A _span_ is the basic unit of work done within a single service, on a single host.
+Every span has a name, starting timestamp, and duration.  A _trace_ contains a collection of spans, where spans
+are organized as a directed acyclic graph (DAG) and can belong to multiple services,
+running on multiple hosts.  The _OpenTracing Data Model_ describes the details
+at https://opentracing.io/specification[The OpenTracing Semantic Specification].
+For example, when you invoke a REST API call, Helidon creates a unique `trace` to track the spans.
+Spans are automatically created by Helidon as needed
+during execution of the REST request.  The following example demonstrates this using a simple trace.
+
 === Create a sample Helidon MP project
 
 Use the Helidon MP Maven archetype to create a simple project that can be used for the examples in this guide.
@@ -63,21 +76,12 @@ mvn archetype:generate -DinteractiveMode=false \
 cd helidon-quickstart-mp
 ----
 
-== Spans and Traces
-
-A _span_ is the basic unit of work done within a single service, on a single host.  Every span has a name, starting timestamp, and duration.
-A _trace_ contains a collection of spans, where spans are organized as a directed acyclic graph (DAG) and can belong to multiple services,
-running on multiple hosts.  The _OpenTracing Data Model_ describes the details
-at https://opentracing.io/specification[The OpenTracing Semantic Specification].
-For example, when you invoke a REST API call, Helidon creates a unique `trace` to track the spans.  Spans are automatically created by Helidon as needed
-during execution of the REST request.  The following example demonstrates this using a simple trace.
-
-NOTE: Helidon automatically enables tracing for JAX-RS resources methods so you don't need to use annotations with JAX-RS.
+=== Setup Zipkin
 
 First, you need to run the Zipkin tracer.  Helidon will communicate with this tracer at runtime.
 
 [source,bash]
-Run Zipkin within a docker container, then check the Zipkin server health:
+.Run Zipkin within a docker container, then check the Zipkin server health:
 ----
 .docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin  // <1>
 ----
@@ -85,7 +89,7 @@ Run Zipkin within a docker container, then check the Zipkin server health:
 
 
 [source,bash]
-Check the Zipkin server health:
+.Check the Zipkin server health:
 ----
 curl http://localhost:9411/health // <1>
 ...
@@ -101,9 +105,10 @@ curl http://localhost:9411/health // <1>
   }
 }
 ----
-<1> Check the Zipkin server health.
+<1> Invoke the Zipkin REST API to check the Zipkin server health.
 <2> All `status` fields should be `UP`.
 
+=== Enable Tracing in your Helidon application
 
 Update the pom.xml file and add the following Zipkin dependency to the `<dependencies>`
 section (*not* `<dependencyManagement>`).
@@ -134,7 +139,7 @@ java -jar target/helidon-quickstart-mp.jar
 ----
 
 [source,bash]
-.Run the curl command in a new terminal window and check the response:
+.Run the curl command and check the response:
 ----
 curl http://localhost:8080/greet
 ...
@@ -143,10 +148,13 @@ curl http://localhost:8080/greet
 }
 ----
 
+
 === Viewing tracing using Zipkin REST API
 
-Because you have tracing enable, the previous endpoint invocation resulted in a new trace being created.
+Because you had tracing enabled, the previous `/greet` endpoint invocation resulted in a new trace being created.
 Let's get the trace data that was generated using the Zipkin API.  First, get the service information.
+
+NOTE: Helidon automatically enables tracing for JAX-RS resources methods so you don't need to use annotations with JAX-RS.
 
 [source,bash]
 .Run the curl command in a new terminal window and check the response:
