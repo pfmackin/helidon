@@ -224,7 +224,7 @@ curl -X GET "http://localhost:9411/api/v2/traces?serviceName=helidon-mp-1&limit=
 ]
 
 ----
-<1> Get the oldest trace only, using the `limit=1` query param.  There are other query params that let you restrict
+<1> Get the newest trace only, using the `limit=1` query param.  There are other query params that let you restrict
 results to a specific time window.
 <2> The request will return seven spans, one for each name, along with an unnamed JSON node, which
 has the status.
@@ -434,7 +434,7 @@ curl -X GET "http://localhost:9411/api/v2/spans?serviceName=helidon-mp-1" -H "ac
 
 === Tracing across services
 
-Helidon automatically traces across services, providing that the services use the same tracer, for example: the same instance of Zipkin.
+Helidon automatically traces across services, providing that the services use the same tracer, for example, the same instance of Zipkin.
 This means a single trace can include spans from multiple services and hosts.  OpenTracing uses a `SpanContext` to
 propagate tracing information across process boundaries.  When you make client API calls, Helidon will
 internally call OpenTracing APIs to propagate the `SpanContext`. There is nothing you need to do in your application to make this work.
@@ -443,9 +443,35 @@ To demonstrate distributed tracing, you will need to create a second project, wh
 Create a new root directory to hold this new project, then do the following steps, similar to
 what you did at the start of this guide:
 
-1. Create a project using the `helidon-quickstart-mp` archetype.
-2. Add the `helidon-tracing-zipkin` dependency to the `pom.xml` file.
-3. Replace `META-INF/microprofile-config.properties` with the following:
+[source,bash,subs="attributes+"]
+.Run the Maven archetype:
+----
+mvn archetype:generate -DinteractiveMode=false \
+    -DarchetypeGroupId=io.helidon.archetypes \
+    -DarchetypeArtifactId=helidon-quickstart-mp \
+    -DarchetypeVersion={helidon-version} \
+    -DgroupId=io.helidon.examples \
+    -DartifactId=helidon-quickstart-mp \
+    -Dpackage=io.helidon.examples.quickstart.mp
+----
+
+[source,bash]
+.The project will be built and run from the `helidon-quickstart-mp` directory:
+----
+cd helidon-quickstart-mp
+----
+
+[source,xml]
+.Add the following dependency to `pom.xml`:
+----
+<dependency>
+  <groupId>io.helidon.tracing</groupId>
+  <artifactId>helidon-tracing-zipkin</artifactId>
+</dependency>
+----
+
+[source,bash]
+.Replace `META-INF/microprofile-config.properties` with the following:
 ----
 app.greeting=Hello From MP-2
 tracing.service=helidon-mp-2
@@ -456,7 +482,14 @@ server.host=0.0.0.0
 ----
 
 [source,bash]
-.Build and run the application, then invoke the endpoint and check the response (*notice the port is 8081*):
+.Build the application, skipping unit tests, then run it:
+----
+mvn package -DskipTests=true
+java -jar target/helidon-quickstart-mp.jar
+----
+
+[source,bash]
+.Run the curl command in a new terminal window and check the response (*notice the port is 8081*) :
 ----
 curl http://localhost:8081/greet
 ...
@@ -464,6 +497,7 @@ curl http://localhost:8081/greet
   "message": "Hello From MP-2 World!"
 }
 ----
+
 
 Once you have validated that the second service is running correctly, you need to modify the original application to
 call it.
@@ -710,7 +744,7 @@ docker rm -f zipkin
 
 == Summary
 
-This guide has demonstrated how to use the Helidon MP tracing feature with Zipkin.
+This guide has demonstrated how to use the Helidon MP tracing feature with Zipkin.  You have learned to do the following:
 
 - Enable tracing within a service
 - Use tracing with JAX-RS and CDI beans
